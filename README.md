@@ -7,6 +7,8 @@
 Your Desktop, Downloads and Notes pile up. Ariadne suggests where every item belongs, shows you the plan, and moves only what you approve.
 In the myth, Ariadne's thread led Theseus back out of the labyrinth. Here the thread is the move log: anything Ariadne moves can be put back.
 
+Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a personal assistant that clears the path through what's coming at you. [The manifesto](MANIFESTO.md) is what both promise.
+
 ## The promises
 - **Nothing moves without your yes.** Background runs only count.
 - **Nothing is deleted or overwritten.** A clash is skipped and reported. Duplicates go to a tray for you to empty.

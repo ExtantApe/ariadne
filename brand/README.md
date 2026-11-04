@@ -1,6 +1,6 @@
 # Brand family
 
-Theseus and Ariadne are two tools from one story: he crossed the sea to the labyrinth, and her thread led him back out. They come from the same maker as OnePedigree and OneTaxonomy and follow the same structure (`brand/` masters, one small-size icon, one shared interface). This file is identical in both repositories; change it in both.
+Theseus and Ariadne are two tools from one story: he crossed the sea to the labyrinth, and her thread led him back out. They come from the same maker as OnePedigree and OneTaxonomy and follow the same structure (`brand/` masters, one small-size icon, one shared interface). This file is identical in both repositories; change it in both. What the two apps promise and how they stay in step is in `MANIFESTO.md`.
 
 ## App icon
 
