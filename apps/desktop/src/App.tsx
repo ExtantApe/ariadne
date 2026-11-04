@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "inbox" | "plans" | "history" | "setup";
-type Count = { unfiled: Record<string, number>; total: number };
+type Count = { unfiled: Record<string, number>; total: number; unreadable?: string[] };
 type PlanInfo = { plan: string; rows: number; approved: number; moved: number; pending: number; modified: string };
 type Row = { line: number; approve: string; current_path: string; proposed_path: string; reason: string; state: "moved" | "pending" };
 type PlanDetail = { plan: string; rows: Row[]; problems: string[]; warnings: string[]; moved: number };
@@ -63,6 +63,10 @@ function Inbox({ onError, onPlans }: { onError: (s: string) => void; onPlans: ()
   }, [onError]);
   useEffect(refresh, [refresh]);
   useEffect(() => {
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [refresh]);
+  useEffect(() => {
     const poll = () => invoke<Job>("job_status").then(setJob);
     poll();
     const t = setInterval(poll, 2000);
@@ -86,6 +90,7 @@ function Inbox({ onError, onPlans }: { onError: (s: string) => void; onPlans: ()
           </tr>
         ))}
       </tbody></table>
+      {!!count.unreadable?.length && <p className="error">Ariadne can't read {count.unreadable.join(" and ")} yet. Allow it in Setup → Full Disk Access, or in System Settings → Privacy & Security → Files and Folders.</p>}
       {job?.running && <p className="muted">Claude Code is drafting a plan for {job.running}, using file names only. It can't move anything.</p>}
       {!job?.running && job?.last_ok === true && (
         <div className="card"><pre>{job.last_output.trim()}</pre><button onClick={onPlans}>Review plans</button></div>
@@ -233,9 +238,9 @@ function History({ onError }: { onError: (s: string) => void }) {
     if (!preview) return;
     setBusy(true);
     try {
-      const r = await cli<{ restored: number; skipped_changed_since?: string[]; failed?: unknown[] }>("undo", "--batch", preview.batch, "--yes");
-      const left = (r.skipped_changed_since?.length ?? 0) + (r.failed?.length ?? 0);
-      setMsg(`Put back ${plural(r.restored, "item")}${left ? `; ${left} left alone because they changed since` : ""}.`);
+      const r = await cli<{ restored: number; skipped_total?: number; failed?: unknown[] }>("undo", "--batch", preview.batch, "--yes");
+      const left = (r.skipped_total ?? 0) + (r.failed?.length ?? 0);
+      setMsg(`Put back ${plural(r.restored, "item")}${left ? `. ${left} couldn't go back because something changed since; try Undo again once that's sorted.` : "."}`);
       setPreview(null); load();
     } catch (e) { onError(errorText(e)); }
     setBusy(false);
@@ -267,11 +272,14 @@ function History({ onError }: { onError: (s: string) => void }) {
 
 function Setup({ onError }: { onError: (s: string) => void }) {
   const [checks, setChecks] = useState<Check[] | null>(null);
-  const load = useCallback(() => {
+  const [cmd, setCmd] = useState("");
+  const load = useCallback((withNotes = false) => {
     setChecks(null);
-    cli<{ checks: Check[] }>("doctor").then((d) => setChecks(d.checks)).catch((e) => onError(errorText(e)));
+    cli<{ checks: Check[] }>(...(withNotes ? ["doctor", "--notes"] : ["doctor"])).then((d) => setChecks(d.checks)).catch((e) => onError(errorText(e)));
   }, [onError]);
-  useEffect(load, [load]);
+  useEffect(() => load(), [load]);
+  const installCommand = () => cli<{ command: string; note?: string }>("install")
+    .then((r) => setCmd(`${r.command}${r.note ? `. ${r.note}.` : ""}`)).catch((e) => onError(errorText(e)));
   return (
     <section>
       <h2>Your filing</h2>
@@ -285,8 +293,13 @@ function Setup({ onError }: { onError: (s: string) => void }) {
       <div className="row">
         <button onClick={() => invoke("open_privacy", { pane: "files" })}>Full Disk Access…</button>
         <button onClick={() => invoke("open_privacy", { pane: "automation" })}>Automation…</button>
-        <button onClick={load}>Check again</button>
+        <button onClick={() => load()}>Check again</button>
+        <button onClick={() => load(true)}>Test Notes (opens Notes)</button>
       </div>
+      <h2>The ariadne command</h2>
+      <p className="muted">Lets Terminal, Claude Code and other tools use Ariadne.</p>
+      <div className="row"><button onClick={installCommand}>Install the command</button>{cmd && <span className="muted small">{cmd}</span>}</div>
+      <h2>Status</h2>
       {!checks ? <p className="muted">Checking…</p> : (
         <ul className="checks">
           {checks.map((c) => <li key={c.name} className={c.ok ? "ok" : "bad"}><b>{c.ok ? "✓" : "✗"} {c.name}</b> <span className="muted small">{c.detail}</span></li>)}

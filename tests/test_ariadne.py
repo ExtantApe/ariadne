@@ -196,5 +196,133 @@ class PartialPlans(Base):
         self.assertEqual(self.run_ok("show", "--plan", plan)["rows"][0]["state"], "pending")
 
 
+class Hardening(Base):
+    def raw_plan(self, *lines, name="raw"):
+        self.run_ok("new-plan", "--name", name)
+        path = next((self.ws / "plans").glob(f"*-{name}.csv"))
+        with open(path, "a") as f:
+            f.write("".join(l + "\n" for l in lines))
+        return path.name
+
+    def test_blank_source_never_means_the_current_folder(self):
+        self.file("Downloads/keep.txt")
+        plan = self.raw_plan(f"Y,,{self.home}/Documents/x")
+        p = subprocess.run(["/usr/bin/python3", str(CLI), "apply", "--plan", plan, "--yes"], capture_output=True, text=True, env=self.env, cwd=self.home / "Downloads")
+        self.assertNotEqual(p.returncode, 0, p.stdout)
+        self.assertTrue((self.home / "Downloads/keep.txt").exists())
+
+    def test_relative_paths_are_refused(self):
+        self.file("Downloads/a.txt")
+        plan = self.raw_plan("Y,a.txt,elsewhere/a.txt")
+        p = subprocess.run(["/usr/bin/python3", str(CLI), "apply", "--plan", plan, "--yes"], capture_output=True, text=True, env=self.env, cwd=self.home / "Downloads")
+        self.assertNotEqual(p.returncode, 0, p.stdout)
+        self.assertTrue((self.home / "Downloads/a.txt").exists())
+
+    def test_standard_home_folders_cannot_be_moved(self):
+        self.file("Documents/a.txt")
+        plan = self.plan([("Documents", "Downloads/Documents")])
+        self.assertNotEqual(self.run_cli("apply", "--plan", plan, "--yes").returncode, 0)
+        self.assertTrue((self.home / "Documents/a.txt").exists())
+
+    def test_folder_containing_a_repository_cannot_be_moved(self):
+        self.file("Downloads/stuff/repo/.git/HEAD")
+        plan = self.plan([("Downloads/stuff", "Documents/stuff")])
+        self.assertNotEqual(self.run_cli("apply", "--plan", plan, "--yes").returncode, 0)
+        self.assertTrue((self.home / "Downloads/stuff/repo/.git/HEAD").exists())
+
+    def test_folder_containing_an_app_folder_cannot_be_moved(self):
+        self.file("Downloads/stuff/Zoom/call.mp4")
+        plan = self.plan([("Downloads/stuff", "Documents/stuff")])
+        self.assertNotEqual(self.run_cli("apply", "--plan", plan, "--yes").returncode, 0)
+
+    def test_paths_outside_home_are_refused(self):
+        outside = Path(tempfile.mkdtemp(prefix="ariadne-outside-")).resolve()
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / "a.txt").write_text("x")
+        plan = self.raw_plan(f"Y,{outside}/a.txt,{self.home}/Documents/a.txt")
+        self.assertNotEqual(self.run_cli("apply", "--plan", plan, "--yes").returncode, 0)
+        self.assertTrue((outside / "a.txt").exists())
+
+    def test_secrets_never_prints_a_value(self):
+        fake_key = "AKIA" + "ABCDEFGHIJKLMNOP"
+        fake_gh = "ghp_" + "abcdefghijklmnopqrst"
+        self.file("Downloads/notes.txt", f"{fake_key} {fake_gh} password: hunter2")
+        p = self.run_cli("secrets", "--path", str(self.home / "Downloads"))
+        self.assertEqual(p.returncode, 0, p.stderr)
+        for value in (fake_key, fake_gh, "hunter2", "ABCDEFGH", "abcdefgh"):
+            self.assertNotIn(value, p.stdout)
+        self.assertEqual(json.loads(p.stdout)["found"], 1)
+
+    def test_unquoted_comma_gives_a_clear_error(self):
+        self.file("Downloads/a.txt")
+        plan = self.raw_plan(f",{self.home}/Downloads/a.txt,{self.home}/Documents/a.txt,taxes, 2025")
+        p = self.run_cli("show", "--plan", plan)
+        self.assertNotIn("Traceback", p.stderr)
+        self.assertNotEqual(p.returncode, 0)
+
+    def test_missing_plan_gives_a_clear_error(self):
+        p = self.run_cli("show", "--plan", "nope.csv")
+        self.assertNotIn("Traceback", p.stderr)
+        self.assertNotEqual(p.returncode, 0)
+
+    def test_new_plan_twice_gets_a_new_name(self):
+        self.run_ok("new-plan", "--name", "dup")
+        self.assertNotEqual(self.run_ok("new-plan", "--name", "dup")["plan"], "")
+        self.assertEqual(len(list((self.ws / "plans").glob("*dup*.csv"))), 2)
+
+    def test_one_failed_move_does_not_stop_the_rest_or_lose_the_log(self):
+        self.file("Downloads/a.txt"); self.file("Downloads/b.txt")
+        locked = self.home / "Documents/locked"; locked.mkdir()
+        plan = self.plan([("Downloads/a.txt", "Documents/locked/a.txt"), ("Downloads/b.txt", "Documents/b.txt")])
+        locked.chmod(0o500)
+        self.addCleanup(locked.chmod, 0o700)
+        p = self.run_cli("apply", "--plan", plan, "--yes")
+        self.assertNotIn("Traceback", p.stderr, p.stderr)
+        res = json.loads(p.stdout)
+        self.assertEqual(res["moved"], 1)
+        self.assertEqual(len(res["skipped"]), 1)
+        self.assertTrue((self.home / "Documents/b.txt").exists())
+        self.assertTrue(any("moved 1" in l for l in (self.ws / "log.md").read_text().splitlines()))
+
+    def test_case_only_rename(self):
+        probe = self.file("Documents/CaseProbe")
+        if not (self.home / "Documents/caseprobe").exists():
+            self.skipTest("case-sensitive disk")
+        self.file("Documents/report.pdf")
+        plan = self.plan([("Documents/report.pdf", "Documents/Report.pdf")])
+        self.assertEqual(self.run_ok("apply", "--plan", plan, "--yes")["moved"], 1)
+        self.assertIn("Report.pdf", os.listdir(self.home / "Documents"))
+
+    def test_undo_can_retry_what_it_skipped(self):
+        self.file("Downloads/a.txt", "orig")
+        plan = self.plan([("Downloads/a.txt", "Documents/a.txt")])
+        self.run_ok("apply", "--plan", plan, "--yes")
+        blocker = self.file("Downloads/a.txt", "in the way")
+        self.assertEqual(self.run_ok("undo", "--yes")["restored"], 0)
+        blocker.unlink()
+        self.assertEqual(self.run_ok("undo", "--yes")["restored"], 1)
+        self.assertEqual((self.home / "Downloads/a.txt").read_text(), "orig")
+
+    def test_unreadable_watched_folder_does_not_break_count(self):
+        (self.home / "Desktop").mkdir(); self.file("Downloads/a.txt")
+        (self.home / "Desktop").chmod(0)
+        self.addCleanup((self.home / "Desktop").chmod, 0o700)
+        p = self.run_cli("count")
+        self.assertNotIn("Traceback", p.stderr, p.stderr)
+        res = json.loads(p.stdout)
+        self.assertEqual(res["total"], 1)
+        self.assertEqual(res["unreadable"], ["~/Desktop"])
+
+    def test_default_undo_matches_the_top_of_history(self):
+        self.file("Downloads/a.txt"); self.file("Downloads/b.txt")
+        self.run_ok("apply", "--plan", self.plan([("Downloads/a.txt", "Documents/a.txt")], name="one"), "--yes")
+        (self.ws / "notes-moves.jsonl").write_text(json.dumps({"batch": "later-notes", "time": "2999-01-01T00:00:00", "id": "x", "from": "A", "to": "B"}) + "\n")
+        self.assertEqual(self.run_ok("undo")["batch"], self.run_ok("history")[0]["batch"])
+
+    def test_doctor_does_not_open_notes_unless_asked(self):
+        checks = self.run_ok("doctor")["checks"]
+        self.assertFalse(any(c["name"] == "Control Notes" for c in checks))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

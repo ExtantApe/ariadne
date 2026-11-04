@@ -4,7 +4,7 @@ ariadne: keep your files and Apple Notes filed, with a yes. Never deletes, never
 
   ariadne install                     set up Ariadne's home and put `ariadne` on your PATH (~/.local/bin)
   ariadne init                        set up or refresh Ariadne's home; your config, map and rules are kept
-  ariadne doctor                      what's working and what needs a permission
+  ariadne doctor [--notes]            what's working and what needs a permission (--notes also tests controlling Notes, which opens it)
   ariadne home                        print Ariadne's home folder
   ariadne rules                       print the operating rules (how Claude runs a filing pass)
   ariadne notes ...                   Apple Notes filing (ariadne notes --help)
@@ -66,7 +66,7 @@ def install():
     return res
 
 
-def doctor():
+def doctor(notes=False):
     checks = []
     def add(name, ok, detail=""):
         checks.append({"name": name, "ok": bool(ok), "detail": detail})
@@ -87,8 +87,9 @@ def doctor():
             add("Read the Notes database", True, "needs Full Disk Access")
     except OSError as e:
         add("Read the Notes database", False, f"{e.strerror}. Turn on Full Disk Access for Ariadne to sort Notes; file filing works without it.")
-    p = subprocess.run(["osascript", "-l", "JavaScript", "-e", "Application('Notes').accounts().length"], capture_output=True, text=True, timeout=60)
-    add("Control Notes", p.returncode == 0, (p.stderr.strip() or "Automation allowed")[:200])
+    if notes:  # opens Notes, so only when asked
+        p = subprocess.run(["osascript", "-l", "JavaScript", "-e", "Application('Notes').accounts().length"], capture_output=True, text=True, timeout=60)
+        add("Control Notes", p.returncode == 0, (p.stderr.strip() or "Automation allowed")[:200])
     return {"checks": checks}
 
 
@@ -103,8 +104,10 @@ def main():
         print(WS); return
     elif cmd == "rules":
         print((ROOT / "RULES.md").read_text()); return
-    elif cmd in ("init", "install", "doctor"):
-        print(json.dumps({"init": init, "install": install, "doctor": doctor}[cmd](), indent=1, ensure_ascii=False)); return
+    elif cmd == "doctor":
+        print(json.dumps(doctor("--notes" in argv), indent=1, ensure_ascii=False)); return
+    elif cmd in ("init", "install"):
+        print(json.dumps({"init": init, "install": install}[cmd](), indent=1, ensure_ascii=False)); return
     elif cmd == "notes":
         import notes
         notes.main(argv[1:]); return

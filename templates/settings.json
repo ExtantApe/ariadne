@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Read",
       "Edit(plans/**)",
       "Edit(filing-map.md)",
       "Edit(filing-rules.md)",

@@ -62,6 +62,7 @@ NOTESLOG = WS / "notes-moves.jsonl"
 LOG_MD = WS / "log.md"
 # Always protected, whatever the config says. Config can only add to these.
 NEVER_TOUCH_ALWAYS = ["~/Code"]
+STANDARD_FOLDERS = ["Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music", "Applications", "Public"]
 PLAN_COLS = ["approve", "current_path", "proposed_path", "reason"]
 SKIP_NAMES = {".DS_Store", ".localized", "Icon\r"}
 
@@ -123,6 +124,10 @@ def blocked(p: Path) -> str | None:
             return f"never-touch path {tilde(nt)}"
     if p == HOME or p in (HOME / "Library", ICLOUD):
         return "a root folder"
+    if p.parent == HOME and p.name in STANDARD_FOLDERS:
+        return "a standard folder"
+    if HOME not in p.parents and p.parts[:2] != ("/", "Volumes"):
+        return "somewhere outside your home folder"
     if p == WS or WS in p.parents:
         return "Ariadne's own folder"
     if HOME / "Library" in p.parents and "Mobile Documents" not in p.parts:
@@ -131,6 +136,32 @@ def blocked(p: Path) -> str | None:
     if repo:
         return f"git repository {tilde(repo)}"
     return None
+
+
+def contains_protected(folder: Path) -> str | None:
+    """What protected thing is inside this folder, if any. Moving the folder would move it too."""
+    owned, nt = set(app_owned()), set(never_touch())
+    for dp, dns, fns in os.walk(folder):
+        if ".git" in dns or ".git" in fns:
+            return f"a git repository ({tilde(Path(dp))})"
+        for d in dns:
+            if d in owned:
+                return f"an app-owned folder ({d})"
+            if Path(dp) / d in nt:
+                return f"a never-touch folder ({d})"
+    return None
+
+
+def same_item(a: Path, b: Path) -> bool:
+    """True when two paths are one item: a case-only rename on a case-insensitive disk."""
+    try:
+        return os.path.samestat(os.lstat(a), os.lstat(b))
+    except OSError:
+        return False
+
+
+def plain_path(p: str) -> bool:
+    return p.startswith("/") or p.startswith("~/")
 
 
 def cloud_only(p: Path, st: os.stat_result | None = None) -> bool:
@@ -179,6 +210,8 @@ def read_plan(path: str) -> list[dict]:
     rows = []
     with open(plan_path(path), newline="") as f:
         for i, r in enumerate(csv.DictReader(f), start=2):
+            if None in r:
+                sys.exit(f"{plan_path(path).name} line {i} has too many columns. Put quotes around any field with a comma in it.")
             r = {k: (v or "").strip() for k, v in r.items()}
             r["line"] = i
             rows.append(r)
@@ -245,10 +278,14 @@ def cmd_scan(a):
     for r in roots:
         if not r.exists():
             items.append({"path": tilde(r), "error": "missing"}); continue
-        for p in walk_files(r, a.deep):
-            items.append(item_info(p))
-    DATA.mkdir(parents=True, exist_ok=True)
-    (DATA / "scans").mkdir(exist_ok=True)
+        try:
+            for p in walk_files(r, a.deep):
+                items.append(item_info(p))
+        except OSError as e:
+            items.append({"path": tilde(r), "error": e.strerror})
+    (DATA / "scans").mkdir(parents=True, exist_ok=True)
+    for old in sorted((DATA / "scans").glob("scan-*.json"))[:-19]:   # our own working files; keep the recent ones
+        old.unlink()
     snap = DATA / "scans" / f"scan-{dt.datetime.now():%Y%m%d-%H%M%S}.json"
     snap.write_text(json.dumps(items, indent=1, ensure_ascii=False))
     summary = Counter((i.get("kind"), "cloud" if i.get("cloud_only") else "local") for i in items if "kind" in i)
@@ -259,36 +296,53 @@ def cmd_scan(a):
 
 
 def cmd_count(a):
-    res = {}
+    res, unreadable = {}, []
     for r in watched():
-        if r.exists():
+        try:
             res[tilde(r)] = sum(1 for c in r.iterdir() if c.name not in SKIP_NAMES and not c.name.startswith(".")
                                 and not c.name.startswith("_") and not blocked(c))
-    out({"unfiled": res, "total": sum(res.values())})
+        except FileNotFoundError:
+            continue
+        except OSError:
+            unreadable.append(tilde(r))
+    out({"unfiled": res, "total": sum(res.values()), "unreadable": unreadable})
 
 
 def cmd_new_plan(a):
     PLANS.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", a.name).strip("-") or "plan"
     p = PLANS / f"{dt.date.today():%Y-%m-%d}-{slug}.csv"
-    if p.exists():
-        sys.exit(f"{tilde(p)} already exists")
+    n = 2
+    while p.exists():
+        p = PLANS / f"{dt.date.today():%Y-%m-%d}-{slug}-{n}.csv"; n += 1
     with open(p, "w", newline="") as f:
         csv.writer(f).writerow(PLAN_COLS)
     out({"plan": tilde(p), "columns": PLAN_COLS,
          "note": "one row per item; approve=Y only after the user says yes; paths may start with ~"})
 
 
-def moved_count(batch: str, log=None) -> int:
-    """Moves in a batch that are still in effect (an undo cancels everything before it)."""
+def live_moves(batch: str, log=None) -> list[dict]:
+    """Moves in a batch that are still in effect: an undo cancels what it put back, but not what it had to skip."""
     log = load_log() if log is None else log
-    last = max([i for i, e in enumerate(log) if e.get("undo_of") == batch], default=-1)
-    return sum(1 for i, e in enumerate(log) if e.get("batch") == batch and "from" in e and i > last)
+    undos = [(i, e) for i, e in enumerate(log) if e.get("undo_of") == batch]
+    last, skipped = (undos[-1][0], set(undos[-1][1].get("skipped", []))) if undos else (-1, set())
+    return [e for i, e in enumerate(log) if e.get("batch") == batch and "from" in e and (i > last or e["to"] in skipped)]
+
+
+def moved_count(batch: str, log=None) -> int:
+    return len(live_moves(batch, log))
 
 
 def row_state(r: dict) -> str:
     """After a plan has been applied, a row is only still waiting if its source is still there. Where it went since is the user's business."""
-    return "pending" if os.path.lexists(expand(r["current_path"])) else "moved"
+    if not plain_path(r.get("current_path", "")):
+        return "pending"
+    s = expand(r["current_path"])
+    if r.get("proposed_path") and plain_path(r["proposed_path"]):
+        d = expand(r["proposed_path"])
+        if s != d and str(s).lower() == str(d).lower() and same_item(s, d):
+            return "moved" if d.name in os.listdir(d.parent) else "pending"
+    return "pending" if os.path.lexists(s) else "moved"
 
 
 def cmd_plans(a):
@@ -348,6 +402,10 @@ def analyse(rows):
     """Problems and warnings for a plan, without touching anything."""
     probs, warns = [], []
     rows = approved(rows)
+    for r in rows:
+        if not (plain_path(r.get("current_path", "")) and plain_path(r["proposed_path"])):
+            probs.append(f"line {r['line']}: paths must be full paths starting with / or ~/")
+    rows = [r for r in rows if plain_path(r.get("current_path", "")) and plain_path(r["proposed_path"])]
     srcs = [expand(r["current_path"]) for r in rows]
     dsts = [expand(r["proposed_path"]) for r in rows]
     seen_dst = Counter(dsts)
@@ -360,13 +418,17 @@ def analyse(rows):
             b = blocked(p)
             if b:
                 probs.append(f"{where}: {label} is in a {b}: {tilde(p)}")
+        if s.is_dir() and not s.is_symlink():
+            inner = contains_protected(s)
+            if inner:
+                probs.append(f"{where}: this folder contains {inner}, which has to stay where it is: {tilde(s)}")
         if seen_dst[d] > 1:
             probs.append(f"{where}: two rows move to the same place: {tilde(d)}")
         if any(x != s and x in s.parents for x in src_set):
             probs.append(f"{where}: its parent folder is also moved in this plan; drop one of the two rows")
-        if d == s or s in d.parents:
+        if d == s or (s in d.parents):
             probs.append(f"{where}: destination is inside the source")
-        if os.path.lexists(d):
+        if os.path.lexists(d) and not same_item(s, d):
             if s.is_dir() and d.is_dir():
                 warns.append(f"{where}: {tilde(d)} exists; contents will be merged child by child")
             else:
@@ -389,18 +451,22 @@ def cmd_check(a):
 
 
 def move_one(src: Path, dst: Path, batch: str, reason: str, moved: list, skipped: list):
-    """Move src to dst. Merge into an existing folder child by child; never overwrite."""
-    if os.path.lexists(dst):
-        if src.is_dir() and not src.is_symlink() and dst.is_dir():
-            for c in sorted(src.iterdir()):
-                if c.name in SKIP_NAMES:
-                    continue
-                move_one(c, dst / c.name, batch, reason, moved, skipped)
+    """Move src to dst. Merge into an existing folder child by child; never overwrite. A failure skips this item and carries on."""
+    try:
+        if os.path.lexists(dst) and not same_item(src, dst):
+            if src.is_dir() and not src.is_symlink() and dst.is_dir():
+                for c in sorted(src.iterdir()):
+                    if c.name in SKIP_NAMES:
+                        continue
+                    move_one(c, dst / c.name, batch, reason, moved, skipped)
+                return
+            skipped.append({"from": tilde(src), "to": tilde(dst), "why": "destination exists"})
             return
-        skipped.append({"from": tilde(src), "to": tilde(dst), "why": "destination exists"})
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(dst))
+    except OSError as e:
+        skipped.append({"from": tilde(src), "to": tilde(dst), "why": e.strerror or str(e)})
         return
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(src), str(dst))
     rec = {"batch": batch, "time": now(), "from": tilde(src), "to": tilde(dst), "reason": reason}
     with open(MOVELOG, "a") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n"); f.flush(); os.fsync(f.fileno())
@@ -432,6 +498,8 @@ def cmd_verify(a):
         s, d = expand(r["current_path"]), expand(r["proposed_path"])
         if not os.path.lexists(d):
             bad.append({"line": r["line"], "missing_at": r["proposed_path"]})
+        elif s != d and same_item(s, d):
+            continue
         elif os.path.lexists(s) and not (s.is_dir() and not has_files(s)):
             bad.append({"line": r["line"], "still_at_source": r["current_path"]})
     out({"checked": len(approved(read_plan(a.plan))), "not_in_place": bad})
@@ -447,38 +515,41 @@ def load_log(path: Path = MOVELOG):
     return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
 
 
-def cmd_history(a):
+def history_rows() -> list[dict]:
+    log = load_log()
     by = {}
-    for e in load_log():
-        if e.get("undo_of"):
-            if e["undo_of"] in by: by[e["undo_of"]]["undone_at"] = e["time"]
-            continue
-        if "from" not in e:
-            continue
-        b = by.setdefault(e["batch"], {"batch": e["batch"], "moves": 0, "first": e["time"], "last": e["time"], "undone_at": None})
-        b["moves"] += 1; b["last"] = e["time"]
+    for e in log:
+        if "from" in e and not e.get("undo_of"):
+            b = by.setdefault(e["batch"], {"batch": e["batch"], "kind": "files", "moves": 0, "first": e["time"], "last": e["time"], "undone_at": None})
+            b["moves"] += 1; b["last"] = e["time"]
     for b in by.values():
-        b["kind"] = "files"
+        if not live_moves(b["batch"], log):
+            b["undone_at"] = max(e["time"] for e in log if e.get("undo_of") == b["batch"])
     for e in load_log(NOTESLOG):
         if e.get("undo_of"):
             if e["undo_of"] in by: by[e["undo_of"]]["undone_at"] = e["time"]
             continue
         b = by.setdefault(e["batch"], {"batch": e["batch"], "kind": "notes", "moves": 0, "first": e["time"], "last": e["time"], "undone_at": None})
         b["moves"] += 1; b["last"] = e["time"]
-    out(sorted(by.values(), key=lambda b: b["last"], reverse=True))
+    return sorted(by.values(), key=lambda b: b["last"], reverse=True)
+
+
+def cmd_history(a):
+    out(history_rows())
 
 
 def cmd_undo(a):
+    batch = a.batch
+    if not batch:
+        rows = [b for b in history_rows() if not b["undone_at"]]
+        if not rows:
+            sys.exit("nothing to undo")
+        batch = rows[0]["batch"]
     log = load_log()
-    if a.batch and not any(e.get("batch") == a.batch for e in log) and any(e.get("batch") == a.batch for e in load_log(NOTESLOG)):
+    if not any(e.get("batch") == batch for e in log) and any(e.get("batch") == batch for e in load_log(NOTESLOG)):
         import notes
-        out(notes.undo(a.batch, a.yes)); return
-    moves = [(i, e) for i, e in enumerate(log) if "from" in e and not e.get("undo_of")]
-    if not moves:
-        sys.exit("nothing to undo")
-    batch = a.batch or moves[-1][1]["batch"]
-    last_undo = max([i for i, e in enumerate(log) if e.get("undo_of") == batch], default=-1)
-    plan = [e for i, e in reversed(moves) if e["batch"] == batch and i > last_undo]
+        out(notes.undo(batch, a.yes)); return
+    plan = list(reversed(live_moves(batch, log)))
     if not plan:
         sys.exit(f"batch {batch} has nothing left to undo")
     if not a.yes:
@@ -487,16 +558,19 @@ def cmd_undo(a):
     restored, skipped = 0, []
     for e in plan:
         s, d = expand(e["to"]), expand(e["from"])
-        if not os.path.lexists(s) or os.path.lexists(d):
+        if not os.path.lexists(s) or (os.path.lexists(d) and not same_item(s, d)):
             skipped.append(e["to"]); continue
-        d.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(s), str(d))
-        restored += 1
+        try:
+            d.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(s), str(d))
+            restored += 1
+        except OSError:
+            skipped.append(e["to"])
     with open(MOVELOG, "a") as f:
         f.write(json.dumps({"batch": f"undo-{batch}", "undo_of": batch, "time": now(), "restored": restored,
                             "skipped": skipped}, ensure_ascii=False) + "\n")
     log_md(f"filing · undo {batch}: restored {restored}, skipped {len(skipped)}")
-    out({"batch": batch, "restored": restored, "skipped_changed_since": skipped[:20]})
+    out({"batch": batch, "restored": restored, "skipped_changed_since": skipped[:20], "skipped_total": len(skipped)})
 
 
 def cmd_dupes(a):
@@ -526,10 +600,13 @@ def cmd_dupes(a):
             local = [p for p in ps if not cloud_only(p)]
             hs = defaultdict(list)
             for p in local:
-                h = hashlib.sha256();
-                with open(p, "rb") as f:
-                    for ch in iter(lambda: f.read(1 << 20), b""):
-                        h.update(ch)
+                h = hashlib.sha256()
+                try:
+                    with open(p, "rb") as f:
+                        for ch in iter(lambda: f.read(1 << 20), b""):
+                            h.update(ch)
+                except OSError:
+                    continue
                 hs[h.hexdigest()].append(p)
             for same in hs.values():
                 if len(same) > 1:
@@ -542,6 +619,16 @@ def cmd_dupes(a):
         if k not in seen:
             seen.add(k); uniq.append(g)
     out({"groups": len(uniq), "extra_copies": sum(len(g["copies"]) for g in uniq), "list": uniq[:200]})
+
+
+def secret_kind(found: str) -> str:
+    """A label for what matched. Never any part of the match itself: some patterns match the key."""
+    t = found.lower()
+    for start, label in (("sk_live", "Stripe key"), ("ghp_", "GitHub token"), ("akia", "AWS key"), ("begin", "private key"), ("db_password", "database password"),
+                         ("pass", "password"), ("api", "API key"), ("secret", "secret key"), ("token", "token"), ("recovery", "recovery code"), ("backup", "backup code")):
+        if t.startswith(start):
+            return label
+    return "possible secret"
 
 
 def cmd_secrets(a):
@@ -558,7 +645,7 @@ def cmd_secrets(a):
                         unreadable += 1
                     elif os.lstat(p).st_size <= 200_000:
                         for m in SECRET_TEXT.finditer(p.read_text(errors="ignore")):
-                            kinds.add(m.group(1).split()[0].lower().rstrip(":="))
+                            kinds.add(secret_kind(m.group(1)))
                 except OSError:
                     unreadable += 1
             if kinds:
@@ -572,6 +659,8 @@ def cmd_alias(a):
     if not a.yes:
         sys.exit("alias needs --yes")
     t, at = expand(a.target), expand(a.at)
+    if blocked(at):
+        sys.exit(f"refusing to put an alias in {blocked(at)}")
     if not t.exists():
         sys.exit(f"target missing: {tilde(t)}")
     at.mkdir(parents=True, exist_ok=True)
@@ -634,7 +723,12 @@ def main():
     x.add_argument("--name"); x.add_argument("--yes", action="store_true"); x.set_defaults(fn=cmd_alias)
     x = s.add_parser("prune-empty"); x.add_argument("--path", required=True); x.add_argument("--yes", action="store_true"); x.set_defaults(fn=cmd_prune)
     a = ap.parse_args()
-    a.fn(a)
+    try:
+        a.fn(a)
+    except OSError as e:
+        sys.exit(f"{e.strerror or e}: {tilde(Path(e.filename)) if e.filename else ''}")
+    except csv.Error as e:
+        sys.exit(f"That plan isn't a readable CSV: {e}")
 
 
 if __name__ == "__main__":

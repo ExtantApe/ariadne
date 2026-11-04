@@ -1,12 +1,11 @@
-# Ariadne for Mac: on a desktop-v* tag, build a universal (Apple silicon + Intel) app and publish it as a GitHub release.
-# Ad hoc signed by choice, like the maintainer's other Mac apps; macOS asks people to confirm the first launch (right-click > Open).
-# Automatic updates and Apple notarization can be added later (TAURI_SIGNING_PRIVATE_KEY and APPLE_* secrets).
+# Ariadne for Mac: on a desktop-v* tag, check the tag matches the app's version, build a universal (Apple silicon + Intel) app,
+# and publish it as a GitHub release. To release: see RELEASING.md.
+# Unsigned by choice (Apple charges for signing); the README explains the first launch.
 name: Desktop app
 
 on:
   push:
     tags: ['desktop-v*']
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,6 +15,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Tag must match the app's version
+        run: |
+          want="desktop-v$(python3 -c "import json;print(json.load(open('apps/desktop/src-tauri/tauri.conf.json'))['version'])")"
+          [ "$GITHUB_REF_NAME" = "$want" ] || { echo "Tag $GITHUB_REF_NAME doesn't match version ($want)"; exit 1; }
+      - run: /usr/bin/python3 tests/test_ariadne.py
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
@@ -32,7 +36,7 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'Ariadne for Mac ${{ github.ref_name }}'
-          releaseBody: 'Download the .dmg below and drag Ariadne to Applications. It is ad hoc signed, so right-click > Open the first time.'
+          releaseBody: 'Download the .dmg and drag Ariadne to Applications. It is unsigned, so see the README for how to allow the first launch: xattr -dr com.apple.quarantine "/Applications/Ariadne.app"'
           releaseDraft: false
           prerelease: false
           args: --target universal-apple-darwin

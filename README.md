@@ -9,7 +9,7 @@ In the myth, Ariadne's thread led Theseus back out of the labyrinth. Here the th
 - **Nothing moves without your yes.** Background runs only count.
 - **Nothing is deleted or overwritten.** A clash is skipped and reported. Duplicates go to a tray for you to empty.
 - **Every batch can be undone**, files and notes alike.
-- **Code stays put.** `~/Code`, anything in a git repository, app-owned folders and Ariadne's own folder are always refused. Your config can only add to that list.
+- **Some things stay put, always.** `~/Code`, anything in a git repository, any folder containing one, app-owned folders, your standard folders themselves (Desktop, Documents and so on), anything outside your home folder or an external drive, and Ariadne's own folder are refused. Your config can only add to that list.
 
 ## Two ways to use it
 **The Mac app.** A menu bar app that counts what's waiting, lets you review a plan row by row, tick what moves, and undo any batch. The tool ships inside it.
@@ -31,25 +31,42 @@ In the myth, Ariadne's thread led Theseus back out of the labyrinth. Here the th
 In Claude Code, `/tidy`, `/file` and `/undo` run a whole pass in plain language.
 
 ## Where Claude comes in
-Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a plan uses [Claude Code](https://code.claude.com), with your own account, and it reads file names (contents only if you allow it in `read_contents`). When the app asks for a plan, Claude may draft one, and approving, applying and undoing are denied.
+Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a plan uses [Claude Code](https://code.claude.com), with your own account, and it reads file names (contents only if you allow it in `read_contents`). When the app asks for a plan, Claude may draft one, and approving, applying, undoing and web access are denied.
 
 ## Install
-**App:** build it (below), drag `Ariadne.app` to Applications, and open it. It's ad hoc signed, so right-click → Open the first time. Full Disk Access is only needed to sort Notes.
+### The app
+1. Download the `.dmg` from [Releases](https://github.com/mgilardi/ariadne/releases/latest) and drag Ariadne to Applications.
+2. Ariadne is free and unsigned (Apple charges for signing), so macOS blocks the first launch. Allow it one of two ways:
 
-**Command:**
+   **Terminal (quickest):**
+
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/Ariadne.app"
+   ```
+
+   **Or System Settings:** open the app and dismiss the warning, then go to **System Settings → Privacy & Security**, scroll down, and choose **Open Anyway**.
+
+Requires macOS 14 or later, on Apple silicon or Intel, and Apple's command line tools (`xcode-select --install`).
+
+Open it and it lives in your menu bar. Sorting Notes also needs Full Disk Access (Setup tab). To use `ariadne` from Terminal, Claude Code or Theseus, click **Install the command** in the Setup tab.
+
+### Just the command
 ```bash
 git clone https://github.com/mgilardi/ariadne ~/ariadne
 ~/ariadne/bin/ariadne install
 ```
 
-## Build the app
-Needs Rust, Node 22+, pnpm and the Xcode Command Line Tools.
+For `/tidy`, `/file` and `/undo` in any Claude Code session, also run `/plugin marketplace add mgilardi/ariadne`, then `/plugin install ariadne@ariadne`.
+
+### Build it yourself
+Needs Rust, Node 22+ and pnpm.
 ```bash
 pnpm install
-pnpm --filter ariadne-desktop icons
 pnpm app:build     # apps/desktop/src-tauri/target/release/bundle/macos/Ariadne.app
 pnpm test          # tests for the part that moves files; runs in a throwaway home
 ```
+
+Macs identify an unsigned app by its exact build, so a new version may ask for its permissions again.
 
 ## Your data
 Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. It never leaves your Mac except what Claude Code reads when drafting a plan.
@@ -58,6 +75,6 @@ Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `
 [Theseus](https://github.com/mgilardi/theseus) is a personal assistant that can offer a filing pass when things pile up. It calls `ariadne count`, and that's the whole connection. To protect what another tool owns, it runs `ariadne protect`.
 
 ## Not yet
-Signing and notarization, automatic updates, a Notes review screen and a filing map editor in the app, and watching folders live.
+Apple signing, automatic updates, a Notes review screen and a filing map editor in the app, and watching folders live.
 
 MIT License. Independent project, not affiliated with Anthropic or Apple.

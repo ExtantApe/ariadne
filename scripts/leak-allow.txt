@@ -3,3 +3,5 @@ github.com/mgilardi/ariadne
 io.github.mgilardi.ariadne
 128x128@2x.png
 github.com/mgilardi/theseus
+mgilardi/ariadne
+mgilardi/theseus

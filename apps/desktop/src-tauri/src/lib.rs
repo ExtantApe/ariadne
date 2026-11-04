@@ -10,21 +10,22 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
 
 const PY: &str = "/usr/bin/python3";
 // What the window may ask the tool to do. Aliases and pruning stay in Terminal/chat for now.
-const ALLOWED: &[&str] = &["count", "plans", "show", "check", "approve", "apply", "verify", "history", "undo", "doctor", "home"];
+const ALLOWED: &[&str] = &["count", "plans", "show", "check", "approve", "apply", "verify", "history", "undo", "doctor", "home", "install"];
+const DRAFT_TIME_LIMIT: Duration = Duration::from_secs(15 * 60);
 
 // Passed on every run: Claude Code ignores a folder's own settings until someone has trusted that folder, and nobody opens Ariadne's home
 // interactively. Drafting is allowed; anything that moves or approves is explicitly denied.
-const DRAFT_ALLOW: &str = "Read,Edit(plans/**),Bash(ariadne rules:*),Bash(ariadne scan:*),Bash(ariadne count:*),Bash(ariadne new-plan:*),\
+const DRAFT_ALLOW: &str = "Edit(plans/**),Bash(ariadne rules:*),Bash(ariadne scan:*),Bash(ariadne count:*),Bash(ariadne new-plan:*),\
 Bash(ariadne plans:*),Bash(ariadne show:*),Bash(ariadne check:*),Bash(ariadne dupes:*),Bash(ariadne history:*)";
 const DRAFT_DENY: &str = "Bash(ariadne approve:*),Bash(ariadne apply:*),Bash(ariadne undo:*),Bash(ariadne alias:*),Bash(ariadne prune-empty:*),\
-Bash(ariadne protect:*),Bash(ariadne notes:*),Bash(rm:*),Bash(mv:*),Bash(cp:*),Bash(python3:*),Bash(/usr/bin/python3:*)";
+Bash(ariadne protect:*),Bash(ariadne notes:*),Bash(rm:*),Bash(mv:*),Bash(cp:*),Bash(python3:*),Bash(/usr/bin/python3:*),WebFetch,WebSearch";
 
 #[derive(Clone, Serialize, Default)]
 struct Job {
@@ -61,6 +62,11 @@ fn path_env(root: &PathBuf) -> String {
 }
 
 fn tool(root: &PathBuf, args: &[String]) -> Result<String, String> {
+    // /usr/bin/python3 is a stub until Apple's developer tools are installed.
+    let has_tools = Command::new("/usr/bin/xcode-select").arg("-p").output().map(|o| o.status.success()).unwrap_or(false);
+    if !has_tools {
+        return Err("Ariadne needs Apple's command line tools. In Terminal, run: xcode-select --install".into());
+    }
     let out = Command::new(PY)
         .arg(root.join("tools/cli.py"))
         .args(args)
@@ -115,20 +121,54 @@ fn suggest(s: State<'_, S>, folder: String) -> Result<(), String> {
              contents), write the plan and run the check until it has no problems. Leave the approve column blank. Don't approve, apply or move \
              anything. End with the plan's file name and a two-line summary."
         );
-        let out = Command::new(&claude)
-            .args(["-p", &prompt, "--allowedTools", DRAFT_ALLOW, "--disallowedTools", DRAFT_DENY])
-            .current_dir(ariadne_home())
-            .env("PATH", path_env(&shared.root))
-            .stdin(Stdio::null())
-            .output();
-        let (ok, text) = match out {
-            Ok(o) => (o.status.success(), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr))),
-            Err(e) => (false, e.to_string()),
-        };
+        let (ok, text) = draft(&claude, &prompt, &shared.root);
         let mut j = shared.job.lock().unwrap();
         *j = Job { running: None, last_folder: folder, last_ok: Some(ok), last_output: text };
     });
     Ok(())
+}
+
+fn draft(claude: &PathBuf, prompt: &str, root: &PathBuf) -> (bool, String) {
+    let h = ariadne_home();
+    let _ = fs::create_dir_all(h.join("logs"));
+    let log = h.join("logs/last-draft.txt");
+    let file = match fs::File::create(&log) {
+        Ok(f) => f,
+        Err(e) => return (false, e.to_string()),
+    };
+    let err = match file.try_clone() {
+        Ok(f) => f,
+        Err(e) => return (false, e.to_string()),
+    };
+    let child = Command::new(claude)
+        .args(["-p", prompt, "--allowedTools", DRAFT_ALLOW, "--disallowedTools", DRAFT_DENY])
+        .current_dir(&h)
+        .env("PATH", path_env(root))
+        .stdin(Stdio::null())
+        .stdout(file)
+        .stderr(err)
+        .spawn();
+    let mut child = match child {
+        Ok(c) => c,
+        Err(e) => return (false, e.to_string()),
+    };
+    let started = Instant::now();
+    let ok = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.success(),
+            Ok(None) if started.elapsed() > DRAFT_TIME_LIMIT => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return (false, "Claude Code took longer than 15 minutes, so Ariadne stopped it. Nothing was moved.".into());
+            }
+            Ok(None) => thread::sleep(Duration::from_secs(1)),
+            Err(e) => return (false, e.to_string()),
+        }
+    };
+    let text = fs::read_to_string(&log).unwrap_or_default();
+    // Claude Code's own notice about untrusted folders is noise here: the tools are passed explicitly.
+    let text = text.lines().filter(|l| !l.starts_with("Ignoring ")).collect::<Vec<_>>().join("\n");
+    (ok, text)
 }
 
 #[tauri::command]
