@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="ts">
+  <title id="ts">Ariadne</title>
+  <!-- Small sizes (16–32 px): a larger tile and heavier lines. Use brand/icon.svg from 64 px up. -->
+  <defs><linearGradient id="gs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a2341f"/><stop offset="1" stop-color="#751f14"/></linearGradient></defs>
+  <rect x="16" y="16" width="992" height="992" rx="220" fill="url(#gs)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke="#fbf8f2"><g transform="translate(512 512) scale(1.16) translate(-512 -512)" stroke-width="44"><path d="M472 492V652M312 572H632"/><path d="M472 492A40 40 0 0 1 552 492"/><path d="M392 492A120 120 0 0 1 632 492V572"/><path d="M312 572V492A200 200 0 0 1 712 492V612A40 40 0 0 1 672 652H552"/><path d="M392 652H272A40 40 0 0 1 232 612V492A280 280 0 0 1 792 492V672A60 60 0 0 1 732 732H504A32 32 0 0 1 472 700V652"/></g></g>
+</svg>

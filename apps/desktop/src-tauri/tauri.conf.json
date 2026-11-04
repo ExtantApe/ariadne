@@ -11,7 +11,7 @@
   },
   "app": {
     "windows": [
-      { "label": "main", "title": "Ariadne", "width": 1100, "height": 760, "minWidth": 760, "minHeight": 520, "visible": false }
+      { "label": "main", "title": "Ariadne", "width": 1040, "height": 720, "minWidth": 760, "minHeight": 520, "visible": false }
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self'"
@@ -29,6 +29,6 @@
       "../../../templates/*": "engine/templates/",
       "../../../RULES.md": "engine/RULES.md"
     },
-    "macOS": { "minimumSystemVersion": "14.0", "signingIdentity": "-" }
+    "macOS": { "minimumSystemVersion": "14.0", "signingIdentity": "-", "hardenedRuntime": false, "entitlements": "Entitlements.plist" }
   }
 }

@@ -1,4 +1,4 @@
-<img src="apps/desktop/app-icon.png" width="96" alt="">
+<img src="brand/icon-1024.png" width="96" alt="">
 
 # Ariadne
 

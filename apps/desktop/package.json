@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "tauri": "tauri",
-    "icons": "tauri icon app-icon.png",
+    "icons": "tauri icon ../../brand/icon-1024.png",
     "app:dev": "tauri dev",
     "app:build": "tauri build"
   },
