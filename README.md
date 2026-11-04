@@ -1,3 +1,5 @@
+<img src="apps/desktop/app-icon.png" width="96" alt="">
+
 # Ariadne
 
 **Keep your Mac's files and Apple Notes filed, with a yes.** Free and open source. For Macs.

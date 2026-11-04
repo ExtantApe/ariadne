@@ -11,6 +11,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
@@ -232,8 +233,8 @@ pub fn run() {
             let sep = PredefinedMenuItem::separator(app)?;
             let menu = Menu::with_items(app, &[&status, &sep, &open, &quit])?;
             TrayIconBuilder::with_id("ariadne")
-                .icon(app.default_window_icon().cloned().expect("app icon"))
-                .icon_as_template(false)
+                .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
+                .icon_as_template(true)
                 .tooltip("Ariadne")
                 .menu(&menu)
                 .show_menu_on_left_click(true)

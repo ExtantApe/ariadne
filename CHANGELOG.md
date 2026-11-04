@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- New identity: the Cretan labyrinth in ivory on Minoan red ochre, a monochrome menu bar icon that follows light and dark mode, and matching colors in the app.
 - First standalone version, split out of Theseus: the `ariadne` command, `/tidy` `/file` `/undo`, and Ariadne for Mac (plan review, history with undo, permissions).
 - Protection is now built in rather than config-only: `~/Code`, git repositories, the Library folder and Ariadne's own folder are always refused, and config can only add to the protected lists.
 - A partly applied plan keeps its remaining rows available, and undoing a batch makes its plan ready again.

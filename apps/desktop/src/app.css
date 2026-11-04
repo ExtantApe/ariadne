@@ -1,5 +1,9 @@
-:root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; font-size: 13px; color-scheme: light dark; --line: #8883; --accent: #0f766e; }
-body { margin: 0; }
+:root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; font-size: 13px; color-scheme: light dark;
+  /* Minoan red ochre and ivory */
+  --paper: #f6f1e6; --ink: #2b1612; --accent: #9e3323; --on-accent: #f7f1e3; --line: #2b161226; }
+@media (prefers-color-scheme: dark) { :root { --paper: #1c110e; --ink: #f3ead6; --accent: #b0432e; --on-accent: #f7f1e3; --line: #f3ead626; } }
+body { margin: 0; background: var(--paper); color: var(--ink); }
+h1 { font-family: ui-serif, "New York", Georgia, serif; font-weight: 500; letter-spacing: .02em; }
 .app { display: flex; flex-direction: column; height: 100vh; }
 header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--line); }
 main { flex: 1; overflow: auto; padding: 16px 20px 40px; }
@@ -8,7 +12,7 @@ h2 { font-size: 14px; margin: 14px 0 6px; }
 .bar h2 { margin: 0; }
 nav button { margin-left: 6px; }
 button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; }
-button.on, button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+button.on, button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
 pre { white-space: pre-wrap; font: 12px/1.45 ui-monospace, Menlo, monospace; margin: 6px 0; }
 code { font: 12px ui-monospace, Menlo, monospace; }
@@ -16,7 +20,7 @@ code { font: 12px ui-monospace, Menlo, monospace; }
 .small { font-size: 11px; }
 .grow { flex: 1; }
 .row, .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
-.bar { position: sticky; top: -16px; background: Canvas; padding: 8px 0; z-index: 1; }
+.bar { position: sticky; top: -16px; background: var(--paper); padding: 8px 0; z-index: 1; }
 .card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
 .card.warn { border-color: #f59e0b; }
 .error { background: #dc262618; border-radius: 6px; padding: 8px 12px; margin: 8px 20px; cursor: default; white-space: pre-wrap; }
