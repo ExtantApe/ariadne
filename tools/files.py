@@ -15,6 +15,8 @@ Commands (JSON output unless --text)
   show --plan FILE                    one plan's rows plus its check results
   approve --plan FILE (--all | --lines 2,3) [--clear]
                                       set (or clear) approve=Y on rows. Only do this after the user said yes.
+  move-row --plan FILE --line N --to FOLDER [--no-learn]
+                                      send one plan row to a different folder, keeping its name. Records the correction in filing-rules.md.
   protect [--path P] [--notes-folder F] [--note-id ID]
                                       add to the never-touch lists (other tools use this to protect what they own)
   check --plan FILE                   validate a plan: sources exist, destinations are free, nothing is moved twice,
@@ -378,13 +380,37 @@ def cmd_approve(a):
             new = "" if a.clear else "Y"
             changed += r.get("approve", "") != new
             r["approve"] = new
+    write_plan(p, rows)
+    out({"plan": p.name, "changed": changed, "approved": len(approved(rows))})
+
+
+def write_plan(p: Path, rows: list[dict]):
     tmp = p.with_suffix(".csv.tmp")
-    cols = [c for c in rows[0] if c != "line"] if rows else PLAN_COLS
+    cols = [c for c in rows[0] if c not in ("line", "state")] if rows else PLAN_COLS
     with open(tmp, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader(); w.writerows(rows)
     os.replace(tmp, p)
-    out({"plan": p.name, "changed": changed, "approved": len(approved(rows))})
+
+
+def cmd_move_row(a):
+    p = plan_path(a.plan)
+    rows = read_plan(str(p))
+    row = next((r for r in rows if r["line"] == a.line), None)
+    if not row:
+        sys.exit(f"{p.name} has no line {a.line}")
+    if not plain_path(a.to):
+        sys.exit("The folder must be a full path starting with / or ~/")
+    name = Path(row["proposed_path"]).name
+    was = str(Path(row["proposed_path"]).parent)
+    row["proposed_path"] = a.to.rstrip("/") + "/" + name
+    write_plan(p, rows)
+    if not a.no_learn:
+        rules = WS / "filing-rules.md"
+        text = rules.read_text() if rules.exists() else "## Hypotheses\n"
+        line = f"- [hypothesis · 1 obs · first seen {dt.date.today()}] {name} → {a.to} (moved by hand from {was})\n"
+        rules.write_text(text.replace("## Hypotheses\n", "## Hypotheses\n" + line, 1) if "## Hypotheses\n" in text else text + "\n## Hypotheses\n" + line)
+    out({"plan": p.name, "line": a.line, "was": was, "to": a.to, "proposed_path": row["proposed_path"]})
 
 
 def cmd_protect(a):
@@ -709,6 +735,8 @@ def main():
     x = s.add_parser("show"); x.add_argument("--plan", required=True); x.set_defaults(fn=cmd_show)
     x = s.add_parser("approve"); x.add_argument("--plan", required=True); x.add_argument("--all", action="store_true"); x.add_argument("--lines")
     x.add_argument("--clear", action="store_true"); x.set_defaults(fn=cmd_approve)
+    x = s.add_parser("move-row"); x.add_argument("--plan", required=True); x.add_argument("--line", type=int, required=True); x.add_argument("--to", required=True)
+    x.add_argument("--no-learn", action="store_true"); x.set_defaults(fn=cmd_move_row)
     x = s.add_parser("protect"); x.add_argument("--path", action="append"); x.add_argument("--notes-folder", action="append")
     x.add_argument("--note-id", action="append"); x.set_defaults(fn=cmd_protect)
     x = s.add_parser("check"); x.add_argument("--plan", required=True); x.set_defaults(fn=cmd_check)

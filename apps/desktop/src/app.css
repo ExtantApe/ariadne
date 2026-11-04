@@ -14,6 +14,8 @@
 .line .from { color: var(--muted); font-size: 12px; word-break: break-word; }
 .line .why { color: var(--muted); font-size: 12px; }
 .line.done { opacity: .55; }
+.line[data-drag-id] { cursor: grab; }
+.line[data-drag-id]:hover { background: var(--hover); }
 .line .tick { margin-top: 2px; display: flex; }
 .big-count { font-size: 34px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .perm { align-items: flex-start; }

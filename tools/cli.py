@@ -8,7 +8,7 @@ ariadne: keep your files and Apple Notes filed, with a yes. Never deletes, never
   ariadne home                        print Ariadne's home folder
   ariadne rules                       print the operating rules (how Claude runs a filing pass)
   ariadne notes ...                   Apple Notes filing (ariadne notes --help)
-  ariadne scan|count|new-plan|plans|show|check|approve|apply|verify|undo|history|dupes|secrets|alias|prune-empty|protect
+  ariadne scan|count|new-plan|plans|show|check|approve|move-row|apply|verify|undo|history|dupes|secrets|alias|prune-empty|protect
                                       filing (ariadne --help-files)
 """
 import sys

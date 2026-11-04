@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Icon, type IconName } from './ui/Icon'
+import { startRowDrag } from './ui/useDrag'
 
 type Tab = 'inbox' | 'plans' | 'history' | 'setup'
 type Count = { unfiled: Record<string, number>; total: number; unreadable?: string[] }
@@ -175,6 +176,7 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<{ moved: number; skipped: unknown[]; batch: string } | null>(null)
+  const [moved, setMoved] = useState<{ line: number; name: string; from: string; to: string } | null>(null)
 
   const load = useCallback(() => {
     cli<PlanDetail>('show', '--plan', plan).then((x) => {
@@ -224,6 +226,19 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
     setConfirming(false)
   }
 
+  const reroute = async (line: number, to: string, learn: boolean) => {
+    const row = d.rows.find((r) => r.line === line)
+    if (!row || parent(row.proposed_path) === to) return
+    setConfirming(false)
+    try {
+      await cli('move-row', '--plan', plan, '--line', String(line), '--to', to, ...(learn ? [] : ['--no-learn']))
+      setMoved(learn ? { line, name: base(row.proposed_path), from: parent(row.proposed_path), to } : null)
+      load()
+    } catch (e) {
+      onError(errorText(e))
+    }
+  }
+
   return (
     <div className="page wide">
       <div className="head bar">
@@ -254,11 +269,18 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
         <div className="notice bad"><Icon name="alert" /><div><b>Fix these before moving</b><pre style={{ marginTop: 4 }}>{d.problems.slice(0, 12).join('\n')}</pre></div></div>
       )}
       {!finished && d.warnings.length > 0 && <div className="notice"><Icon name="info" /><pre>{d.warnings.slice(0, 8).join('\n')}</pre></div>}
+      {!finished && groups.length > 1 && <div className="muted small">Drag anything to a different folder. Ariadne remembers what you correct.</div>}
+      {moved && (
+        <div className="toast" role="status">
+          <span>{moved.name} moved to {base(moved.to)}</span>
+          <button onClick={() => { void reroute(moved.line, moved.from, false) }}>Undo</button>
+        </div>
+      )}
       {groups.map(([dest, rows]) => {
         const lines = rows.filter((r) => r.state === 'pending').map((r) => r.line)
         const all = lines.length > 0 && lines.every((l) => sel.has(l))
         return (
-          <details className="card group" key={dest} open={groups.length <= 12}>
+          <details className="card group" key={dest} open={groups.length <= 12} data-drop-group={dest}>
             <summary>
               <Icon name="chevron" className="chev" />
               {!finished && lines.length > 0 && <input type="checkbox" aria-label={`Select all going to ${pretty(dest)}`} checked={all} onClick={(e) => e.stopPropagation()} onChange={() => toggle(lines, !all)} />}
@@ -270,7 +292,12 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
               const renamed = base(r.current_path) !== base(r.proposed_path)
               const pending = r.state === 'pending'
               return (
-                <div className={`line ${pending ? '' : 'done'}`} key={r.line}>
+                <div
+                  className={`line ${pending ? '' : 'done'}`}
+                  key={r.line}
+                  data-drag-id={pending && !finished ? String(r.line) : undefined}
+                  onPointerDown={pending && !finished ? (e) => startRowDrag(e, String(r.line), base(r.proposed_path), (t) => void reroute(r.line, t.group, true)) : undefined}
+                >
                   <span className="tick">
                     {pending
                       ? (!finished && <input type="checkbox" aria-label={base(r.proposed_path)} checked={sel.has(r.line)} onChange={() => toggle([r.line], !sel.has(r.line))} />)

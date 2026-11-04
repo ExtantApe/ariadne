@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="t">
   <title id="t">Ariadne</title>
-  <!-- The classical labyrinth of Knossos, grown from the ancient seed pattern of a cross and four dots. Tile per brand/README.md: 896 square, radius 200, top-to-bottom gradient, cream line glyph. -->
-  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a2341f"/><stop offset="1" stop-color="#751f14"/></linearGradient></defs>
+  <!-- The classical labyrinth of Knossos, grown from the ancient seed pattern of a cross and four dots. Tile per brand/README.md: 896 square, radius 200, top-to-bottom pastel gradient, deep brown line glyph. -->
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d9cd"/><stop offset="1" stop-color="#ecb09c"/></linearGradient></defs>
   <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#g)"/>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke="#fbf8f2"><g transform="translate(0 0)" stroke-width="34"><path d="M472 492V652M312 572H632"/><path d="M472 492A40 40 0 0 1 552 492"/><path d="M392 492A120 120 0 0 1 632 492V572"/><path d="M312 572V492A200 200 0 0 1 712 492V612A40 40 0 0 1 672 652H552"/><path d="M392 652H272A40 40 0 0 1 232 612V492A280 280 0 0 1 792 492V672A60 60 0 0 1 732 732H504A32 32 0 0 1 472 700V652"/></g></g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke="#4c312c"><g transform="translate(0 0)" stroke-width="34"><path d="M472 492V652M312 572H632"/><path d="M472 492A40 40 0 0 1 552 492"/><path d="M392 492A120 120 0 0 1 632 492V572"/><path d="M312 572V492A200 200 0 0 1 712 492V612A40 40 0 0 1 672 652H552"/><path d="M392 652H272A40 40 0 0 1 232 612V492A280 280 0 0 1 792 492V672A60 60 0 0 1 732 732H504A32 32 0 0 1 472 700V652"/></g></g>
 </svg>

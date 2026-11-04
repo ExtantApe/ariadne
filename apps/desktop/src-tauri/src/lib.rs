@@ -18,7 +18,7 @@ use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
 
 const PY: &str = "/usr/bin/python3";
 // What the window may ask the tool to do. Aliases and pruning stay in Terminal/chat for now.
-const ALLOWED: &[&str] = &["count", "plans", "show", "check", "approve", "apply", "verify", "history", "undo", "doctor", "home", "install"];
+const ALLOWED: &[&str] = &["count", "plans", "show", "check", "approve", "move-row", "apply", "verify", "history", "undo", "doctor", "home", "install"];
 const DRAFT_TIME_LIMIT: Duration = Duration::from_secs(15 * 60);
 
 // Passed on every run: Claude Code ignores a folder's own settings until someone has trusted that folder, and nobody opens Ariadne's home

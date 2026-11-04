@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Drag a file to a different folder in a plan, with undo. Ariadne records the correction in `filing-rules.md` so it can learn from it. New `ariadne move-row`.
+- Softer, pastel app icon.
 - New interface on the shared design system with Theseus (`brand/README.md`): a sidebar, plans split into to-review and done, a clearer review screen. Built without Apple's hardened runtime, which can silently block macOS permission dialogs on unsigned apps.
 - New identity: the Cretan labyrinth in ivory on Minoan red ochre, a monochrome menu bar icon that follows light and dark mode, and matching colors in the app.
 - First standalone version, split out of Theseus: the `ariadne` command, `/tidy` `/file` `/undo`, and Ariadne for Mac (plan review, history with undo, permissions).

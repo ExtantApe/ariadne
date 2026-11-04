@@ -196,6 +196,39 @@ class PartialPlans(Base):
         self.assertEqual(self.run_ok("show", "--plan", plan)["rows"][0]["state"], "pending")
 
 
+class MoveRow(Base):
+    def test_moves_a_row_and_learns(self):
+        self.file("Downloads/a.txt")
+        plan = self.plan([("Downloads/a.txt", "Documents/x/a.txt")], approve=False)
+        self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Documents/y"))
+        self.assertTrue(self.run_ok("show", "--plan", plan)["rows"][0]["proposed_path"].endswith("Documents/y/a.txt"))
+        self.assertIn("a.txt →", (self.ws / "filing-rules.md").read_text())
+        self.run_ok("approve", "--plan", plan, "--all")
+        self.assertEqual(self.run_ok("apply", "--plan", plan, "--yes")["moved"], 1)
+        self.assertTrue((self.home / "Documents/y/a.txt").exists())
+
+    def test_undoing_a_row_move_teaches_nothing(self):
+        self.file("Downloads/a.txt")
+        plan = self.plan([("Downloads/a.txt", "Documents/x/a.txt")], approve=False)
+        before = (self.ws / "filing-rules.md").read_text()
+        self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Documents/y"), "--no-learn")
+        self.assertEqual((self.ws / "filing-rules.md").read_text(), before)
+
+    def test_protected_destination_is_still_refused(self):
+        self.file("Downloads/a.txt")
+        plan = self.plan([("Downloads/a.txt", "Documents/a.txt")], approve=False)
+        self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Code/z"))
+        self.run_ok("approve", "--plan", plan, "--all")
+        self.assertEqual(self.run_cli("apply", "--plan", plan, "--yes").returncode, 2)
+        self.assertTrue((self.home / "Downloads/a.txt").exists())
+
+    def test_unknown_line_gives_a_clear_error(self):
+        plan = self.plan([], approve=False)
+        p = self.run_cli("move-row", "--plan", plan, "--line", "9", "--to", "~/x")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertNotIn("Traceback", p.stderr)
+
+
 class Hardening(Base):
     def raw_plan(self, *lines, name="raw"):
         self.run_ok("new-plan", "--name", name)
