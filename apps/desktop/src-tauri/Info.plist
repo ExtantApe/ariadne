@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>LSUIElement</key><true/>
+  <key>NSDesktopFolderUsageDescription</key><string>Ariadne counts what's waiting on your Desktop and moves only what you approve.</string>
+  <key>NSDocumentsFolderUsageDescription</key><string>Ariadne files approved items into your Documents folder.</string>
+  <key>NSDownloadsFolderUsageDescription</key><string>Ariadne counts what's waiting in Downloads and moves only what you approve.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Ariadne moves the notes you approve into their folders in Notes.</string>
+</dict>
+</plist>

@@ -1,0 +1,5 @@
+{
+  "name": "ariadne",
+  "owner": { "name": "Ariadne contributors" },
+  "plugins": [{ "name": "ariadne", "source": "./", "description": "Keep your Mac's files and Apple Notes filed, with a yes." }]
+}

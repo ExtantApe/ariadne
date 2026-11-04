@@ -1,0 +1,7 @@
+#!/bin/bash
+# The ariadne command. Follows its own symlink, so ~/.local/bin/ariadne works from anywhere.
+src="${BASH_SOURCE[0]}"
+while [[ -L "$src" ]]; do
+  dir="$(cd "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ "$src" == /* ]] || src="$dir/$src"
+done
+exec /usr/bin/python3 "$(cd "$(dirname "$src")/.." && pwd)/tools/cli.py" "$@"

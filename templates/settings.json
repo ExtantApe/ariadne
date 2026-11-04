@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit(plans/**)",
+      "Edit(filing-map.md)",
+      "Edit(filing-rules.md)",
+      "Bash(ariadne rules:*)",
+      "Bash(ariadne home:*)",
+      "Bash(ariadne doctor:*)",
+      "Bash(ariadne scan:*)",
+      "Bash(ariadne count:*)",
+      "Bash(ariadne new-plan:*)",
+      "Bash(ariadne plans:*)",
+      "Bash(ariadne show:*)",
+      "Bash(ariadne check:*)",
+      "Bash(ariadne verify:*)",
+      "Bash(ariadne history:*)",
+      "Bash(ariadne dupes:*)",
+      "Bash(ariadne secrets:*)",
+      "Bash(ariadne notes folders:*)",
+      "Bash(ariadne notes find:*)",
+      "Bash(ariadne notes snapshot:*)"
+    ],
+    "ask": [
+      "Bash(ariadne approve:*)",
+      "Bash(ariadne apply:*)",
+      "Bash(ariadne undo:*)",
+      "Bash(ariadne alias:*)",
+      "Bash(ariadne prune-empty:*)",
+      "Bash(ariadne protect:*)",
+      "Bash(ariadne notes move:*)",
+      "Bash(ariadne notes undo:*)",
+      "Edit(config.json)"
+    ],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Edit(moves.log.jsonl)",
+      "Edit(notes-moves.jsonl)"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+:root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; font-size: 13px; color-scheme: light dark; --line: #8883; --accent: #0f766e; }
+body { margin: 0; }
+.app { display: flex; flex-direction: column; height: 100vh; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+main { flex: 1; overflow: auto; padding: 16px 20px 40px; }
+h1 { font-size: 16px; margin: 0; }
+h2 { font-size: 14px; margin: 14px 0 6px; }
+.bar h2 { margin: 0; }
+nav button { margin-left: 6px; }
+button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; }
+button.on, button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+pre { white-space: pre-wrap; font: 12px/1.45 ui-monospace, Menlo, monospace; margin: 6px 0; }
+code { font: 12px ui-monospace, Menlo, monospace; }
+.muted { opacity: .65; }
+.small { font-size: 11px; }
+.grow { flex: 1; }
+.row, .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.bar { position: sticky; top: -16px; background: Canvas; padding: 8px 0; z-index: 1; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.card.warn { border-color: #f59e0b; }
+.error { background: #dc262618; border-radius: 6px; padding: 8px 12px; margin: 8px 20px; cursor: default; white-space: pre-wrap; }
+main .error { margin: 8px 0; }
+table { width: 100%; border-collapse: collapse; }
+.list th { text-align: left; font-weight: 500; opacity: .65; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.list td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.list tr.click { cursor: pointer; }
+.list tr.click:hover { background: #8881; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.act { text-align: right; width: 1%; white-space: nowrap; }
+details { border-bottom: 1px solid var(--line); }
+summary { padding: 7px 4px; cursor: pointer; font-weight: 500; }
+summary input { margin-right: 6px; }
+.dest { word-break: break-all; }
+.rows td { padding: 4px 8px; vertical-align: top; border-top: 1px solid #8881; }
+.tick { width: 18px; }
+.why { width: 34%; }
+.checks { list-style: none; padding: 0; }
+.checks li { margin: 6px 0; }
+.checks .ok b { color: #16a34a; }
+.checks .bad b { color: #dc2626; }

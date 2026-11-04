@@ -1,0 +1,38 @@
+# Ariadne for Mac: on a desktop-v* tag, build a universal (Apple silicon + Intel) app and publish it as a GitHub release.
+# Ad hoc signed by choice, like the maintainer's other Mac apps; macOS asks people to confirm the first launch (right-click > Open).
+# Automatic updates and Apple notarization can be added later (TAURI_SIGNING_PRIVATE_KEY and APPLE_* secrets).
+name: Desktop app
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: pnpm install --frozen-lockfile
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Ariadne for Mac ${{ github.ref_name }}'
+          releaseBody: 'Download the .dmg below and drag Ariadne to Applications. It is ad hoc signed, so right-click > Open the first time.'
+          releaseDraft: false
+          prerelease: false
+          args: --target universal-apple-darwin

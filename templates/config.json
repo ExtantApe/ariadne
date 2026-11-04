@@ -1,0 +1,14 @@
+{
+  "documents_root": "~/Documents",
+  "watch": ["~/Desktop", "~/Downloads"],
+  "read_contents": "ask",
+  "never_touch": [],
+  "app_owned": [],
+  "secret_scan": ["~/Desktop", "~/Downloads", "~/Documents"],
+  "camera_media": "review",
+  "notes_account": "iCloud",
+  "notes_never_touch": [],
+  "notes_never_touch_ids": [],
+  "notes_no_text": ["Secrets"],
+  "notes_secrets_folder": "Secrets"
+}

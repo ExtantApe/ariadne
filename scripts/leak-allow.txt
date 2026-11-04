@@ -1,0 +1,5 @@
+# Public phrases the leak check should allow
+github.com/mgilardi/ariadne
+io.github.mgilardi.ariadne
+128x128@2x.png
+github.com/mgilardi/theseus

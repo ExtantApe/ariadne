@@ -1,0 +1,14 @@
+{
+  "name": "ariadne",
+  "private": true,
+  "description": "Ariadne: keep your Mac's files and Apple Notes filed, with a yes. Never deletes, never overwrites, every batch can be undone.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.2.2",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "app:dev": "pnpm --filter ariadne-desktop app:dev",
+    "app:build": "pnpm --filter ariadne-desktop app:build",
+    "test": "/usr/bin/python3 tests/test_ariadne.py"
+  }
+}
