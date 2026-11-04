@@ -54,7 +54,7 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'Ariadne for Mac ${{ github.ref_name }}'
-          releaseBody: 'Download the .dmg and drag Ariadne to Applications. It isn't notarized by Apple, so see the README for how to allow the first launch: xattr -dr com.apple.quarantine "/Applications/Ariadne.app"'
+          releaseBody: 'Download the .dmg and drag Ariadne to Applications. It is not notarized by Apple, so see the README for how to allow the first launch: xattr -dr com.apple.quarantine "/Applications/Ariadne.app"'
           releaseDraft: false
           prerelease: false
           args: --target universal-apple-darwin
