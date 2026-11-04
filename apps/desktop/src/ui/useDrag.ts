@@ -23,7 +23,9 @@ export function startRowDrag(e: ReactPointerEvent, id: string, label: string, on
   const stop = () => {
     document.removeEventListener('pointermove', move)
     document.removeEventListener('pointerup', up)
+    document.removeEventListener('pointercancel', stop)
     document.removeEventListener('keydown', key)
+    window.removeEventListener('blur', stop)
     window.clearInterval(timer)
     ghost?.remove()
     marker?.remove()
@@ -56,6 +58,8 @@ export function startRowDrag(e: ReactPointerEvent, id: string, label: string, on
   }
 
   const move = (ev: PointerEvent) => {
+    // The button was let go somewhere this window couldn't see, like outside it.
+    if (ev.buttons === 0) return stop()
     if (!ghost) {
       if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return
       ghost = document.createElement('div')
@@ -89,5 +93,7 @@ export function startRowDrag(e: ReactPointerEvent, id: string, label: string, on
   }
   document.addEventListener('pointermove', move)
   document.addEventListener('pointerup', up)
+  document.addEventListener('pointercancel', stop)
   document.addEventListener('keydown', key)
+  window.addEventListener('blur', stop)
 }

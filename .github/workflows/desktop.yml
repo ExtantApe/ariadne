@@ -1,6 +1,6 @@
 # Ariadne for Mac: on a desktop-v* tag, check the tag matches the app's version, build a universal (Apple silicon + Intel) app,
 # and publish it as a GitHub release. To release: see RELEASING.md.
-# Unsigned by choice (Apple charges for signing); the README explains the first launch.
+# Signed with our own certificate so updates keep macOS permissions (RELEASING.md). Not notarized, since Apple charges for that; the README explains the first launch.
 name: Desktop app
 
 on:
@@ -13,6 +13,9 @@ permissions:
 jobs:
   mac:
     runs-on: macos-latest
+    env:
+      APP_SIGNING_P12: ${{ secrets.APP_SIGNING_P12 }}
+      APP_SIGNING_PASSWORD: ${{ secrets.APP_SIGNING_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
       - name: Tag must match the app's version
@@ -20,6 +23,7 @@ jobs:
           want="desktop-v$(python3 -c "import json;print(json.load(open('apps/desktop/src-tauri/tauri.conf.json'))['version'])")"
           [ "$GITHUB_REF_NAME" = "$want" ] || { echo "Tag $GITHUB_REF_NAME doesn't match version ($want)"; exit 1; }
       - run: /usr/bin/python3 tests/test_ariadne.py
+      - run: bash scripts/check-shared.sh
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
@@ -29,6 +33,20 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - run: pnpm install --frozen-lockfile
+      - name: Signing certificate
+        if: env.APP_SIGNING_P12 != ''
+        run: |
+          # A stable certificate keeps macOS permissions across updates. Forks without these secrets get an ad hoc signature.
+          KC="$RUNNER_TEMP/signing.keychain-db"; PW="$(openssl rand -hex 16)"
+          echo "$APP_SIGNING_P12" | base64 -d > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p "$PW" "$KC"
+          security set-keychain-settings -lut 7200 "$KC"
+          security unlock-keychain -p "$PW" "$KC"
+          security import "$RUNNER_TEMP/signing.p12" -k "$KC" -P "$APP_SIGNING_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$PW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/signing.p12"
+          echo "APPLE_SIGNING_IDENTITY=$(security find-identity -p codesigning "$KC" | grep -Eo '[0-9A-F]{40}' | head -1)" >> "$GITHUB_ENV"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,7 +54,7 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'Ariadne for Mac ${{ github.ref_name }}'
-          releaseBody: 'Download the .dmg and drag Ariadne to Applications. It is unsigned, so see the README for how to allow the first launch: xattr -dr com.apple.quarantine "/Applications/Ariadne.app"'
+          releaseBody: 'Download the .dmg and drag Ariadne to Applications. It isn't notarized by Apple, so see the README for how to allow the first launch: xattr -dr com.apple.quarantine "/Applications/Ariadne.app"'
           releaseDraft: false
           prerelease: false
           args: --target universal-apple-darwin

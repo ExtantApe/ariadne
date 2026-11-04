@@ -140,6 +140,138 @@ class Protection(Base):
         self.refused("Private/a.txt", "Documents/a.txt")
 
 
+class Bypasses(Base):
+    """Every way past a protected path the 2026-11 review found. All of these used to move the file."""
+
+    def raw(self, src, dst, name):
+        self.run_ok("new-plan", "--name", name)
+        path = next((self.ws / "plans").glob(f"*-{name}.csv"))
+        with open(path, "a", newline="") as f:
+            csv.writer(f).writerow(["Y", src, dst, "test"])
+        return path.name
+
+    def assert_refused(self, src, dst, name):
+        plan = self.raw(src, dst, name)
+        self.assertTrue(self.run_ok("check", "--plan", plan)["problems"], "check should refuse")
+        self.assertEqual(self.run_cli("apply", "--plan", plan, "--yes").returncode, 2)
+
+    def test_dot_dot_out_of_code(self):
+        a = self.file("Code/thing/a.py")
+        self.assert_refused(f"{self.home}/Downloads/../Code/thing/a.py", f"{self.home}/Documents/a.py", "dotdot")
+        self.assertTrue(a.exists())
+
+    def test_dot_dot_into_code(self):
+        a = self.file("Downloads/a.py"); (self.home / "Code").mkdir()
+        self.assert_refused(str(a), f"{self.home}/Downloads/../Code/a.py", "dotinto")
+        self.assertFalse((self.home / "Code/a.py").exists())
+
+    def test_wrong_capitalization(self):
+        a = self.file("Code/thing/a.py")
+        if not (self.home / "code").exists():
+            self.skipTest("case-sensitive disk")
+        self.assert_refused(f"{self.home}/code/thing/a.py", f"{self.home}/Documents/a.py", "caps")
+        self.assertTrue(a.exists())
+
+    def test_symlink_into_code_as_source(self):
+        a = self.file("Code/thing/a.py")
+        (self.home / "Downloads/link").symlink_to(self.home / "Code")
+        self.assert_refused(f"{self.home}/Downloads/link/thing/a.py", f"{self.home}/Documents/a.py", "linksrc")
+        self.assertTrue(a.exists())
+
+    def test_symlink_into_code_as_destination(self):
+        a = self.file("Downloads/a.py"); (self.home / "Code").mkdir()
+        (self.home / "Documents/link").symlink_to(self.home / "Code")
+        self.assert_refused(str(a), f"{self.home}/Documents/link/a.py", "linkdst")
+        self.assertFalse((self.home / "Code/a.py").exists())
+
+    def test_app_owned_any_capitalization(self):
+        a = self.file("Documents/zoom/call.mp4")
+        self.assert_refused(str(a), f"{self.home}/Documents/call.mp4", "zoom")
+        self.assertTrue(a.exists())
+
+    def test_folder_with_differently_capitalized_app_folder_inside(self):
+        self.file("Downloads/stuff/zoom/call.mp4")
+        self.assert_refused(f"{self.home}/Downloads/stuff", f"{self.home}/Documents/stuff", "zoomin")
+
+    def test_standard_folder_any_capitalization(self):
+        self.file("Documents/a.txt")
+        if not (self.home / "documents").exists():
+            self.skipTest("case-sensitive disk")
+        self.assert_refused(f"{self.home}/documents", f"{self.home}/Downloads/documents", "stdcaps")
+
+    def test_merge_through_a_symlink_cannot_reach_code(self):
+        (self.home / "Code/thing").mkdir(parents=True)
+        self.file("Downloads/f/a.py")
+        (self.home / "Documents/f").symlink_to(self.home / "Code/thing")
+        self.assert_refused(f"{self.home}/Downloads/f", f"{self.home}/Documents/f", "merge")
+        self.assertFalse((self.home / "Code/thing/a.py").exists())
+
+    def test_nested_mobile_documents_does_not_open_the_library(self):
+        a = self.file("Library/Stuff/Mobile Documents/a.txt")
+        self.assert_refused(str(a), f"{self.home}/Documents/a.txt", "lib")
+        self.assertTrue(a.exists())
+
+    def test_the_move_itself_checks_again(self):
+        sys_path = str(CLI.parent)
+        code = (
+            "import sys; sys.path.insert(0, %r); import files; from pathlib import Path\n"
+            "m, s = [], []\n"
+            "files.move_one(Path(sys.argv[1]), Path(sys.argv[2]), 'b', 'r', m, s)\n"
+            "print(len(m), len(s))" % sys_path
+        )
+        a = self.file("Downloads/a.py"); (self.home / "Code").mkdir()
+        p = subprocess.run(["/usr/bin/python3", "-c", code, str(a), str(self.home / "Code/a.py")], capture_output=True, text=True, env=self.env)
+        self.assertEqual(p.stdout.split(), ["0", "1"], p.stderr)
+        self.assertTrue(a.exists())
+
+    def test_undo_can_still_put_back_what_an_old_build_moved_out_of_code(self):
+        moved = self.file("Documents/a.py", "rescued"); (self.home / "Code").mkdir()
+        (self.ws / "moves.log.jsonl").write_text(json.dumps({"batch": "old", "time": "2026-01-01T00:00:00", "from": "~/Code/a.py", "to": "~/Documents/a.py"}) + "\n")
+        self.assertEqual(self.run_ok("undo", "--batch", "old", "--yes")["restored"], 1)
+        self.assertEqual((self.home / "Code/a.py").read_text(), "rescued")
+        self.assertFalse(moved.exists())
+
+
+class CrashSafety(Base):
+    def test_log_is_written_before_the_move(self):
+        a = self.file("Downloads/a.txt")
+        plan = self.plan([("Downloads/a.txt", "Documents/a.txt")])
+        code = (
+            "import sys, json, os; sys.path.insert(0, %r); sys.argv = ['files', 'apply', '--plan', %r, '--yes']; import files, shutil\n"
+            "def die(s, d):\n"
+            "    assert any(e.get('to', '').endswith('Documents/a.txt') for e in files.load_log()), 'not logged first'\n"
+            "    shutil.real_move(s, d); os._exit(9)\n"
+            "shutil.real_move = shutil.move; shutil.move = die\n"
+            "files.main()" % (str(CLI.parent), plan)
+        )
+        p = subprocess.run(["/usr/bin/python3", "-c", code], capture_output=True, text=True, env=self.env)
+        self.assertEqual(p.returncode, 9, p.stderr)
+        self.assertEqual(self.run_ok("undo", "--yes")["restored"], 1)
+        self.assertTrue(a.exists())
+
+    def test_a_failed_move_is_not_in_history(self):
+        self.file("Downloads/a.txt")
+        locked = self.home / "Documents/locked"; locked.mkdir()
+        plan = self.plan([("Downloads/a.txt", "Documents/locked/a.txt")])
+        locked.chmod(0o500)
+        self.addCleanup(locked.chmod, 0o700)
+        self.assertEqual(self.run_ok("apply", "--plan", plan, "--yes")["moved"], 0)
+        self.assertEqual(self.run_ok("history"), [])
+
+    def test_torn_log_line_is_survivable(self):
+        self.file("Downloads/a.txt")
+        self.run_ok("apply", "--plan", self.plan([("Downloads/a.txt", "Documents/a.txt")]), "--yes")
+        with open(self.ws / "moves.log.jsonl", "a") as f:
+            f.write('{"batch": "torn", "ti')
+        self.assertEqual(len(self.run_ok("history")), 1)
+
+    def test_undo_that_finds_it_already_back_is_not_a_failure(self):
+        a = self.file("Downloads/a.txt")
+        self.run_ok("apply", "--plan", self.plan([("Downloads/a.txt", "Documents/a.txt")]), "--yes")
+        (self.home / "Documents/a.txt").rename(a)
+        self.assertEqual(self.run_ok("undo", "--yes")["skipped_total"], 0)
+
+
 class Contract(Base):
     def test_count_shape_other_tools_rely_on(self):
         self.file("Downloads/a.txt"); self.file("Downloads/.hidden"); self.file("Downloads/_tray/x")
@@ -156,6 +288,20 @@ class Contract(Base):
         (self.ws / "notes-moves.jsonl").write_text(json.dumps({"batch": "n1", "time": "2026-01-01T00:00:00", "id": "x", "from": "A", "to": "B"}) + "\n")
         self.assertEqual(self.run_ok("history")[0]["kind"], "notes")
         self.assertEqual(self.run_ok("undo", "--batch", "n1")["would_restore"], 1)
+
+    def test_one_broken_plan_does_not_hide_the_others(self):
+        self.file("Downloads/a.txt")
+        self.plan([("Downloads/a.txt", "Documents/a.txt")], name="good", approve=False)
+        self.run_ok("new-plan", "--name", "bad")
+        bad = next((self.ws / "plans").glob("*-bad.csv"))
+        with open(bad, "a") as f:
+            f.write('Y,a,b,c,too,many,columns\n')
+        (self.ws / "plans" / "2026-01-01-binary.csv").write_bytes(b"\xff\xfe\x00\x01")
+        rows = {r["plan"]: r for r in self.run_ok("plans")}
+        self.assertEqual(len(rows), 3)
+        self.assertIn("error", rows[bad.name])
+        self.assertIn("error", rows["2026-01-01-binary.csv"])
+        self.assertTrue(any(k.endswith("-good.csv") and "error" not in v for k, v in rows.items()))
 
     def test_plans_lists_applied_state(self):
         self.file("Downloads/a.txt")
@@ -213,6 +359,26 @@ class MoveRow(Base):
         before = (self.ws / "filing-rules.md").read_text()
         self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Documents/y"), "--no-learn")
         self.assertEqual((self.ws / "filing-rules.md").read_text(), before)
+
+    def test_undoing_a_drag_takes_the_correction_back_out(self):
+        self.file("Downloads/a.txt")
+        plan = self.plan([("Downloads/a.txt", "Documents/x/a.txt")], approve=False)
+        before = (self.ws / "filing-rules.md").read_text()
+        self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Documents/y"))
+        self.assertNotEqual((self.ws / "filing-rules.md").read_text(), before)
+        self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Documents/x"), "--unlearn")
+        self.assertEqual((self.ws / "filing-rules.md").read_text(), before)
+        self.assertTrue(self.run_ok("show", "--plan", plan)["rows"][0]["proposed_path"].endswith("Documents/x/a.txt"))
+
+    def test_unlearn_leaves_other_corrections_alone(self):
+        self.file("Downloads/a.txt"); self.file("Downloads/b.txt")
+        plan = self.plan([("Downloads/a.txt", "Documents/x/a.txt"), ("Downloads/b.txt", "Documents/x/b.txt")], approve=False)
+        self.run_ok("move-row", "--plan", plan, "--line", "2", "--to", str(self.home / "Documents/y"))
+        self.run_ok("move-row", "--plan", plan, "--line", "3", "--to", str(self.home / "Documents/y"))
+        self.run_ok("move-row", "--plan", plan, "--line", "3", "--to", str(self.home / "Documents/x"), "--unlearn")
+        rules = (self.ws / "filing-rules.md").read_text()
+        self.assertIn("a.txt →", rules)
+        self.assertNotIn("b.txt →", rules)
 
     def test_protected_destination_is_still_refused(self):
         self.file("Downloads/a.txt")

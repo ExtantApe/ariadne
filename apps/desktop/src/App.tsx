@@ -6,7 +6,7 @@ import { startRowDrag } from './ui/useDrag'
 
 type Tab = 'inbox' | 'plans' | 'history' | 'setup'
 type Count = { unfiled: Record<string, number>; total: number; unreadable?: string[] }
-type PlanInfo = { plan: string; rows: number; approved: number; moved: number; pending: number; modified: string }
+type PlanInfo = { plan: string; rows: number; approved: number; moved: number; pending: number; modified: string; error?: string }
 type Row = { line: number; approve: string; current_path: string; proposed_path: string; reason: string; state: 'moved' | 'pending' }
 type PlanDetail = { plan: string; rows: Row[]; problems: string[]; warnings: string[]; moved: number }
 type Batch = { batch: string; kind: string; moves: number; first: string; last: string; undone_at: string | null }
@@ -146,8 +146,9 @@ function Inbox({ error, onError, onPlans }: Common & { onPlans: () => void }) {
 function Plans({ onOpen, error, onError }: Common & { onOpen: (p: string) => void }) {
   const [plans, setPlans] = useState<PlanInfo[] | null>(null)
   useEffect(() => { cli<PlanInfo[]>('plans').then(setPlans).catch((e) => onError(errorText(e))) }, [onError])
-  const waiting = plans?.filter((p) => !p.moved || p.pending) ?? []
-  const done = plans?.filter((p) => p.moved && !p.pending) ?? []
+  const broken = plans?.filter((p) => p.error) ?? []
+  const waiting = plans?.filter((p) => !p.error && (!p.moved || p.pending)) ?? []
+  const done = plans?.filter((p) => !p.error && p.moved && !p.pending) ?? []
   const row = (p: PlanInfo) => (
     <button className="item click" key={p.plan} onClick={() => onOpen(p.plan)}>
       <Icon name="file" />
@@ -166,6 +167,17 @@ function Plans({ onOpen, error, onError }: Common & { onOpen: (p: string) => voi
       {plans && !plans.length && <div className="card empty"><Icon name="plans" size={28} /><h2>No plans yet</h2><div>Suggest one from To file, or run <code>/tidy</code> in Claude Code.</div></div>}
       {waiting.length > 0 && <div className="card"><div className="card-title">To review</div>{waiting.map(row)}</div>}
       {done.length > 0 && <div className="card"><div className="card-title">Done</div>{done.map(row)}</div>}
+      {broken.length > 0 && (
+        <div className="card">
+          <div className="card-title">Can't be read</div>
+          {broken.map((p) => (
+            <div className="item" key={p.plan}>
+              <Icon name="alert" />
+              <div className="grow"><div className="title">{p.plan}</div><div className="muted small">{p.error}</div></div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -226,13 +238,13 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
     setConfirming(false)
   }
 
-  const reroute = async (line: number, to: string, learn: boolean) => {
+  const reroute = async (line: number, to: string, learn: 'learn' | 'unlearn') => {
     const row = d.rows.find((r) => r.line === line)
     if (!row || parent(row.proposed_path) === to) return
     setConfirming(false)
     try {
-      await cli('move-row', '--plan', plan, '--line', String(line), '--to', to, ...(learn ? [] : ['--no-learn']))
-      setMoved(learn ? { line, name: base(row.proposed_path), from: parent(row.proposed_path), to } : null)
+      await cli('move-row', '--plan', plan, '--line', String(line), '--to', to, ...(learn === 'unlearn' ? ['--unlearn'] : []))
+      setMoved(learn === 'learn' ? { line, name: base(row.proposed_path), from: parent(row.proposed_path), to } : null)
       load()
     } catch (e) {
       onError(errorText(e))
@@ -273,7 +285,7 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
       {moved && (
         <div className="toast" role="status">
           <span>{moved.name} moved to {base(moved.to)}</span>
-          <button onClick={() => { void reroute(moved.line, moved.from, false) }}>Undo</button>
+          <button onClick={() => { void reroute(moved.line, moved.from, 'unlearn') }}>Undo</button>
         </div>
       )}
       {groups.map(([dest, rows]) => {
@@ -296,7 +308,7 @@ function Review({ plan, onBack, error, onError, onHistory }: Common & { plan: st
                   className={`line ${pending ? '' : 'done'}`}
                   key={r.line}
                   data-drag-id={pending && !finished ? String(r.line) : undefined}
-                  onPointerDown={pending && !finished ? (e) => startRowDrag(e, String(r.line), base(r.proposed_path), (t) => void reroute(r.line, t.group, true)) : undefined}
+                  onPointerDown={pending && !finished ? (e) => startRowDrag(e, String(r.line), base(r.proposed_path), (t) => void reroute(r.line, t.group, 'learn')) : undefined}
                 >
                   <span className="tick">
                     {pending

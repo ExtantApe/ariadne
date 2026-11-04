@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+- **Protected folders can no longer be bypassed.** 0.1.0 compared path text, so `~/Downloads/../Code/x`, `~/code/x`, a symlink into `~/Code`, and `Documents/zoom` all got through. Ariadne now checks where a path really leads, ignoring capitalization, and checks again at the moment of each move, including inside folder merges. Undo can still put back anything an older version moved out.
+- **Every move can be undone, even after a crash.** The log entry is written before the move, not after.
+- Undoing a drag takes the correction back out of `filing-rules.md`.
+- One unreadable plan no longer blanks the Plans page. It's listed on its own.
+- Plans, rules and config are written whole, so a crash can't leave half a file.
+- Releases are signed with a stable certificate, so updates keep your macOS permissions. This release asks for them one last time.
+- A drag released outside the window ends.
+- New: browser tests of the window in `apps/desktop/e2e`, run by CI, plus a check that files shared with Theseus stay identical.
+
+## 0.1.0
 - Drag a file to a different folder in a plan, with undo. Ariadne records the correction in `filing-rules.md` so it can learn from it. New `ariadne move-row`.
 - Softer, pastel app icon.
 - New interface on the shared design system with Theseus (`brand/README.md`): a sidebar, plans split into to-review and done, a clearer review screen. Built without Apple's hardened runtime, which can silently block macOS permission dialogs on unsigned apps.

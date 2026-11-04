@@ -1,10 +1,11 @@
 {
   "name": "ariadne-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Ariadne for Mac: review filing plans, approve what moves, and undo any batch.",
   "scripts": {
+    "e2e": "node e2e/ui.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "tauri": "tauri",

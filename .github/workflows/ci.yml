@@ -11,7 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: /usr/bin/python3 tests/test_ariadne.py
+      - name: Private terms for the leak check
+        env:
+          TERMS: ${{ secrets.LEAK_TERMS }}
+        run: if [ -n "$TERMS" ]; then printf '%s\n' "$TERMS" > "$HOME/.theseus-private-terms"; fi
       - run: bash scripts/leak-check.sh
+      - run: bash scripts/check-shared.sh
   app:
     runs-on: macos-latest
     steps:
@@ -23,4 +28,7 @@ jobs:
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ariadne-desktop build
+      - run: pnpm exec playwright install webkit
+      - run: pnpm --filter ariadne-desktop e2e
       - run: pnpm --filter ariadne-desktop tauri build --no-bundle

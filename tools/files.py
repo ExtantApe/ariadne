@@ -15,8 +15,9 @@ Commands (JSON output unless --text)
   show --plan FILE                    one plan's rows plus its check results
   approve --plan FILE (--all | --lines 2,3) [--clear]
                                       set (or clear) approve=Y on rows. Only do this after the user said yes.
-  move-row --plan FILE --line N --to FOLDER [--no-learn]
-                                      send one plan row to a different folder, keeping its name. Records the correction in filing-rules.md.
+  move-row --plan FILE --line N --to FOLDER [--no-learn | --unlearn]
+                                      send one plan row to a different folder, keeping its name. Records the correction in filing-rules.md;
+                                      --unlearn is for undoing a move-row, and takes the correction back out.
   protect [--path P] [--notes-folder F] [--note-id ID]
                                       add to the never-touch lists (other tools use this to protect what they own)
   check --plan FILE                   validate a plan: sources exist, destinations are free, nothing is moved twice,
@@ -43,12 +44,16 @@ import argparse
 import csv
 import datetime as dt
 import hashlib
+import io
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import unicodedata
+import uuid
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -90,7 +95,26 @@ def out(obj, text=False):
 
 
 def expand(p: str) -> Path:
-    return Path(os.path.expanduser(p.strip())).absolute()
+    """A clean absolute path. `..` is resolved here, so the path we check is the path we move."""
+    return Path(os.path.normpath(os.path.abspath(os.path.expanduser(p.strip()))))
+
+
+def write_atomic(path: Path, text: str):
+    """Write a whole file so a crash leaves the old one or the new one, never half of either."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(text); f.flush(); os.fsync(f.fileno())
+        if path.exists():
+            os.chmod(tmp, path.stat().st_mode & 0o777)
+        else:
+            os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def tilde(p: Path) -> str:
@@ -106,50 +130,76 @@ def never_touch() -> list[Path]:
     return [expand(p) for p in NEVER_TOUCH_ALWAYS + FCFG.get("never_touch", [])]
 
 
-def in_git_repo(p: Path) -> Path | None:
+def fold(p) -> str:
+    """How macOS compares names by default: case and accent encoding don't count. On a case-sensitive disk this only protects more."""
+    return unicodedata.normalize("NFC", str(p)).casefold()
+
+
+def within(p: Path, root: Path) -> bool:
+    """p is root or inside it."""
+    fp, fr = fold(p), fold(root).rstrip("/")
+    return fp == fr or fp.startswith(fr + "/")
+
+
+def same_path(a: Path, b: Path) -> bool:
+    return fold(a) == fold(b)
+
+
+def in_git_repo(p: Path, home: Path = HOME) -> Path | None:
     """The repository p is in or is, if any. Moving code around breaks it."""
     for d in [p, *p.parents]:
-        if d == HOME or d == d.parent:
+        if same_path(d, home) or d == d.parent:
             return None
         if os.path.lexists(d / ".git"):
             return d
     return None
 
 
-def blocked(p: Path) -> str | None:
-    parts = set(p.parts)
-    for name in app_owned():
-        if name in parts:
-            return f"app-owned folder '{name}'"
+def blocked_at(p: Path, place) -> str | None:
+    """The rules, with every folder they name seen through `place`, so p and the rules are compared like for like."""
+    home = place(HOME)
+    owned = {fold(n): n for n in app_owned()}
+    for part in p.parts:
+        if fold(part) in owned:
+            return f"app-owned folder '{owned[fold(part)]}'"
     for nt in never_touch():
-        if p == nt or nt in p.parents:
+        if within(p, place(nt)):
             return f"never-touch path {tilde(nt)}"
-    if p == HOME or p in (HOME / "Library", ICLOUD):
+    library = home / "Library"
+    if same_path(p, home) or same_path(p, library) or same_path(p, place(ICLOUD)):
         return "a root folder"
-    if p.parent == HOME and p.name in STANDARD_FOLDERS:
+    if same_path(p.parent, home) and fold(p.name) in {fold(n) for n in STANDARD_FOLDERS}:
         return "a standard folder"
-    if HOME not in p.parents and p.parts[:2] != ("/", "Volumes"):
+    if not within(p, home) and not within(p, Path("/Volumes")):
         return "somewhere outside your home folder"
-    if p == WS or WS in p.parents:
+    if within(p, place(WS)):
         return "Ariadne's own folder"
-    if HOME / "Library" in p.parents and "Mobile Documents" not in p.parts:
+    if within(p, library) and not within(p, library / "Mobile Documents"):
         return "the Library folder"
-    repo = in_git_repo(p)
+    repo = in_git_repo(p, home)
     if repo:
         return f"git repository {tilde(repo)}"
     return None
 
 
+def blocked(p: Path) -> str | None:
+    """Why this path can't be moved or moved into, if so. Checked both as written and where it really leads,
+    so `..`, wrong capitalization and symlinks can't talk their way past a rule."""
+    return (blocked_at(Path(os.path.normpath(p)), lambda x: Path(os.path.normpath(x)))
+            or blocked_at(Path(os.path.realpath(p)), lambda x: Path(os.path.realpath(x))))
+
+
 def contains_protected(folder: Path) -> str | None:
     """What protected thing is inside this folder, if any. Moving the folder would move it too."""
-    owned, nt = set(app_owned()), set(never_touch())
+    owned = {fold(n) for n in app_owned()}
+    nt = {fold(n) for n in never_touch()} | {fold(os.path.realpath(n)) for n in never_touch()}
     for dp, dns, fns in os.walk(folder):
         if ".git" in dns or ".git" in fns:
             return f"a git repository ({tilde(Path(dp))})"
         for d in dns:
-            if d in owned:
+            if fold(d) in owned:
                 return f"an app-owned folder ({d})"
-            if Path(dp) / d in nt:
+            if fold(Path(dp) / d) in nt:
                 return f"a never-touch folder ({d})"
     return None
 
@@ -351,11 +401,17 @@ def cmd_plans(a):
     log = load_log()
     res = []
     for p in sorted(PLANS.glob("*.csv"), key=lambda x: x.stat().st_mtime, reverse=True) if PLANS.exists() else []:
-        rows = read_plan(str(p))
+        modified = dt.datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        try:
+            rows = read_plan(str(p))
+        except (SystemExit, csv.Error, OSError, UnicodeDecodeError) as e:   # one bad plan mustn't hide the others
+            res.append({"plan": p.name, "rows": 0, "approved": 0, "moved": 0, "pending": 0, "modified": modified,
+                        "error": str(e) or "This plan can't be read."})
+            continue
         moved = moved_count(p.stem, log)
         res.append({"plan": p.name, "rows": len(rows), "approved": len(approved(rows)), "moved": moved,
                     "pending": sum(1 for r in rows if row_state(r) == "pending") if moved else len(rows),
-                    "modified": dt.datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")})
+                    "modified": modified})
     out(res)
 
 
@@ -385,12 +441,11 @@ def cmd_approve(a):
 
 
 def write_plan(p: Path, rows: list[dict]):
-    tmp = p.with_suffix(".csv.tmp")
     cols = [c for c in rows[0] if c not in ("line", "state")] if rows else PLAN_COLS
-    with open(tmp, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
-        w.writeheader(); w.writerows(rows)
-    os.replace(tmp, p)
+    buf = io.StringIO(newline="")
+    w = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
+    w.writeheader(); w.writerows(rows)
+    write_atomic(p, buf.getvalue())
 
 
 def cmd_move_row(a):
@@ -405,11 +460,20 @@ def cmd_move_row(a):
     was = str(Path(row["proposed_path"]).parent)
     row["proposed_path"] = a.to.rstrip("/") + "/" + name
     write_plan(p, rows)
-    if not a.no_learn:
-        rules = WS / "filing-rules.md"
-        text = rules.read_text() if rules.exists() else "## Hypotheses\n"
-        line = f"- [hypothesis · 1 obs · first seen {dt.date.today()}] {name} → {a.to} (moved by hand from {was})\n"
-        rules.write_text(text.replace("## Hypotheses\n", "## Hypotheses\n" + line, 1) if "## Hypotheses\n" in text else text + "\n## Hypotheses\n" + line)
+    rules = WS / "filing-rules.md"
+    text = rules.read_text() if rules.exists() else "## Hypotheses\n"
+    if a.unlearn:
+        # Undoing a drag: the correction this row just taught goes too. The row's going back to `to`, so the rule to drop is `was` ← `to`.
+        end = f"] {name} → {was} (moved by hand from {a.to.rstrip('/')})"
+        lines = text.splitlines(keepends=True)
+        for i in range(len(lines) - 1, -1, -1):
+            if lines[i].rstrip("\n").endswith(end):
+                del lines[i]
+                write_atomic(rules, "".join(lines))
+                break
+    elif not a.no_learn:
+        line = f"- [hypothesis · 1 obs · first seen {dt.date.today()}] {name} → {a.to.rstrip('/')} (moved by hand from {was})\n"
+        write_atomic(rules, text.replace("## Hypotheses\n", "## Hypotheses\n" + line, 1) if "## Hypotheses\n" in text else text + "\n## Hypotheses\n" + line)
     out({"plan": p.name, "line": a.line, "was": was, "to": a.to, "proposed_path": row["proposed_path"]})
 
 
@@ -419,8 +483,7 @@ def cmd_protect(a):
     for key, vals in (("never_touch", a.path), ("notes_never_touch", a.notes_folder), ("notes_never_touch_ids", a.note_id)):
         cur = cfg.setdefault(key, [])
         cur.extend(v for v in (vals or []) if v not in cur)
-    WS.mkdir(parents=True, exist_ok=True)
-    cfg_path.write_text(json.dumps(cfg, indent=2, ensure_ascii=False) + "\n")
+    write_atomic(cfg_path, json.dumps(cfg, indent=2, ensure_ascii=False) + "\n")
     out({k: cfg.get(k, []) for k in ("never_touch", "notes_never_touch", "notes_never_touch_ids")})
 
 
@@ -476,8 +539,20 @@ def cmd_check(a):
          "ok_to_apply": not probs})
 
 
+def append_log(rec: dict):
+    MOVELOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(MOVELOG, "a") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n"); f.flush(); os.fsync(f.fileno())
+
+
 def move_one(src: Path, dst: Path, batch: str, reason: str, moved: list, skipped: list):
-    """Move src to dst. Merge into an existing folder child by child; never overwrite. A failure skips this item and carries on."""
+    """Move src to dst. Merge into an existing folder child by child; never overwrite. A failure skips this item and carries on.
+    The log entry is written first: a crash mid-move then leaves an entry undo can act on or see past, never a move it doesn't know about."""
+    # Checked again here, not only in the plan check: a merge reaches paths the check never saw, and things change between check and move.
+    why = blocked(src) or blocked(dst)
+    if why:
+        skipped.append({"from": tilde(src), "to": tilde(dst), "why": why})
+        return
     try:
         if os.path.lexists(dst) and not same_item(src, dst):
             if src.is_dir() and not src.is_symlink() and dst.is_dir():
@@ -489,13 +564,17 @@ def move_one(src: Path, dst: Path, batch: str, reason: str, moved: list, skipped
             skipped.append({"from": tilde(src), "to": tilde(dst), "why": "destination exists"})
             return
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(src), str(dst))
+        rec = {"batch": batch, "time": now(), "from": tilde(src), "to": tilde(dst), "reason": reason, "id": uuid.uuid4().hex}
+        append_log(rec)
     except OSError as e:
         skipped.append({"from": tilde(src), "to": tilde(dst), "why": e.strerror or str(e)})
         return
-    rec = {"batch": batch, "time": now(), "from": tilde(src), "to": tilde(dst), "reason": reason}
-    with open(MOVELOG, "a") as f:
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n"); f.flush(); os.fsync(f.fileno())
+    try:
+        shutil.move(str(src), str(dst))
+    except OSError as e:
+        append_log({"batch": batch, "time": now(), "cancels": rec["id"]})
+        skipped.append({"from": tilde(src), "to": tilde(dst), "why": e.strerror or str(e)})
+        return
     moved.append(rec)
 
 
@@ -538,7 +617,15 @@ def has_files(p: Path) -> bool:
 def load_log(path: Path = MOVELOG):
     if not path.exists():
         return []
-    return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+    entries = []
+    for l in path.read_text().splitlines():   # a crash can leave a torn last line; the rest of the log still counts
+        try:
+            if l.strip():
+                entries.append(json.loads(l))
+        except ValueError:
+            pass
+    cancelled = {e["cancels"] for e in entries if "cancels" in e}
+    return [e for e in entries if "cancels" not in e and e.get("id") not in cancelled]
 
 
 def history_rows() -> list[dict]:
@@ -584,6 +671,8 @@ def cmd_undo(a):
     restored, skipped = 0, []
     for e in plan:
         s, d = expand(e["to"]), expand(e["from"])
+        if not os.path.lexists(s) and os.path.lexists(d):
+            continue   # already back: a crash mid-undo, or a move that never finished
         if not os.path.lexists(s) or (os.path.lexists(d) and not same_item(s, d)):
             skipped.append(e["to"]); continue
         try:
@@ -592,9 +681,7 @@ def cmd_undo(a):
             restored += 1
         except OSError:
             skipped.append(e["to"])
-    with open(MOVELOG, "a") as f:
-        f.write(json.dumps({"batch": f"undo-{batch}", "undo_of": batch, "time": now(), "restored": restored,
-                            "skipped": skipped}, ensure_ascii=False) + "\n")
+    append_log({"batch": f"undo-{batch}", "undo_of": batch, "time": now(), "restored": restored, "skipped": skipped})
     log_md(f"filing · undo {batch}: restored {restored}, skipped {len(skipped)}")
     out({"batch": batch, "restored": restored, "skipped_changed_since": skipped[:20], "skipped_total": len(skipped)})
 
@@ -698,8 +785,7 @@ def cmd_alias(a):
     p = subprocess.run(["osascript", "-l", "JavaScript", "-e", js, str(t), str(at), name], capture_output=True, text=True)
     if p.returncode != 0:
         sys.exit(f"Finder error: {p.stderr.strip()} (System Settings → Privacy & Security → Automation → allow Finder)")
-    with open(MOVELOG, "a") as f:
-        f.write(json.dumps({"batch": f"alias-{dt.date.today()}", "time": now(), "alias": tilde(at / name), "target": tilde(t)}) + "\n")
+    append_log({"batch": f"alias-{dt.date.today()}", "time": now(), "alias": tilde(at / name), "target": tilde(t)})
     log_md(f"filing · alias {tilde(at / name)} → {tilde(t)}")
     out({"created": True, "alias": tilde(at / name), "target": tilde(t)})
 
@@ -736,7 +822,7 @@ def main():
     x = s.add_parser("approve"); x.add_argument("--plan", required=True); x.add_argument("--all", action="store_true"); x.add_argument("--lines")
     x.add_argument("--clear", action="store_true"); x.set_defaults(fn=cmd_approve)
     x = s.add_parser("move-row"); x.add_argument("--plan", required=True); x.add_argument("--line", type=int, required=True); x.add_argument("--to", required=True)
-    x.add_argument("--no-learn", action="store_true"); x.set_defaults(fn=cmd_move_row)
+    x.add_argument("--no-learn", action="store_true"); x.add_argument("--unlearn", action="store_true"); x.set_defaults(fn=cmd_move_row)
     x = s.add_parser("protect"); x.add_argument("--path", action="append"); x.add_argument("--notes-folder", action="append")
     x.add_argument("--note-id", action="append"); x.set_defaults(fn=cmd_protect)
     x = s.add_parser("check"); x.add_argument("--plan", required=True); x.set_defaults(fn=cmd_check)

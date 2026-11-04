@@ -1,6 +1,6 @@
 {
   "name": "ariadne",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Keep your Mac's files and Apple Notes filed, with a yes. Never deletes or overwrites; every batch can be undone. Independent project, not affiliated with Anthropic.",
   "author": { "name": "Ariadne contributors" },
   "license": "MIT",

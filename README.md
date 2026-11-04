@@ -11,7 +11,7 @@ In the myth, Ariadne's thread led Theseus back out of the labyrinth. Here the th
 - **Nothing moves without your yes.** Background runs only count.
 - **Nothing is deleted or overwritten.** A clash is skipped and reported. Duplicates go to a tray for you to empty.
 - **Every batch can be undone**, files and notes alike.
-- **Some things stay put, always.** `~/Code`, anything in a git repository, any folder containing one, app-owned folders, your standard folders themselves (Desktop, Documents and so on), anything outside your home folder or an external drive, and Ariadne's own folder are refused. Your config can only add to that list.
+- **Some things stay put, always.** Checked by where a path really leads, so `..`, capitalization and symlinks don't get around it, and checked again at the moment of each move: `~/Code`, anything in a git repository, any folder containing one, app-owned folders, your standard folders themselves (Desktop, Documents and so on), anything outside your home folder or an external drive, and Ariadne's own folder are refused. Your config can only add to that list.
 
 ## Two ways to use it
 **The Mac app.** A menu bar app that counts what's waiting, lets you review a plan row by row, tick what moves, and undo any batch. The tool ships inside it.
@@ -38,7 +38,7 @@ Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a p
 ## Install
 ### The app
 1. Download the `.dmg` from [Releases](https://github.com/mgilardi/ariadne/releases/latest) and drag Ariadne to Applications.
-2. Ariadne is free and unsigned (Apple charges for signing), so macOS blocks the first launch. Allow it one of two ways:
+2. Ariadne is free and isn't notarized by Apple (Apple charges for that), so macOS blocks the first launch. Allow it one of two ways:
 
    **Terminal (quickest):**
 
@@ -68,7 +68,7 @@ pnpm app:build     # apps/desktop/src-tauri/target/release/bundle/macos/Ariadne.
 pnpm test          # tests for the part that moves files; runs in a throwaway home
 ```
 
-Macs identify an unsigned app by its exact build, so a new version may ask for its permissions again.
+Your own builds are signed ad hoc, so each one asks for permissions again. Releases keep them.
 
 ## Your data
 Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. It never leaves your Mac except what Claude Code reads when drafting a plan.

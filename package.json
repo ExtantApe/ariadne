@@ -5,10 +5,15 @@
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.2.2",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "app:dev": "pnpm --filter ariadne-desktop app:dev",
     "app:build": "pnpm --filter ariadne-desktop app:build",
     "test": "/usr/bin/python3 tests/test_ariadne.py"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }
