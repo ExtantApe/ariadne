@@ -412,6 +412,7 @@ function Setup({ error, onError }: Common) {
         <div className="card-title">Your filing</div>
         <div className="item"><Icon name="map" /><div className="grow"><div className="title">Filing map</div><div className="muted small">The folders everything files into, and how things are named.</div></div><button className="btn" onClick={() => invoke('reveal', { what: 'map' })}>Edit</button></div>
         <div className="item"><Icon name="plans" /><div className="grow"><div className="title">Filing rules</div><div className="muted small">What Ariadne has learned from your corrections.</div></div><button className="btn" onClick={() => invoke('reveal', { what: 'rules' })}>Edit</button></div>
+        <div className="item"><Icon name="clock" /><div className="grow"><div className="title">Opening by itself</div><div className="muted small">Ariadne opens at login and reopens after a crash. If you quit it from the menu bar, it stays closed until you open it or restart your Mac.</div></div></div>
         <div className="item"><Icon name="folder" /><div className="grow"><div className="title">Ariadne's folder</div><div className="muted small">Your plans and move logs.</div></div><button className="btn" onClick={() => invoke('reveal', { what: 'home' })}>Show</button></div>
       </div>
       <div className="card">

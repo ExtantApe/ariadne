@@ -50,7 +50,7 @@ Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a p
 
 Requires macOS 14 or later, on Apple silicon or Intel, and Apple's command line tools (`xcode-select --install`).
 
-Open it and it lives in your menu bar. Sorting Notes also needs Full Disk Access (Setup tab). To use `ariadne` from Terminal, Claude Code or Theseus, click **Install the command** in the Setup tab.
+Open it once and it lives in your menu bar. From then on it opens at login and reopens after a crash, without Claude or Terminal open; quitting it from the menu bar keeps it closed until you open it or restart (`"open_at_login": false` in its config turns this off). Sorting Notes also needs Full Disk Access (Setup tab). To use `ariadne` from Terminal, Claude Code or Theseus, click **Install the command** in the Setup tab.
 
 ### Just the command
 ```bash

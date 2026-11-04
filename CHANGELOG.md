@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1
+- **Just open the app, once.** Ariadne now opens at login and reopens after a crash, the same way Theseus does, with no Login Items step. Quitting from the menu bar is respected. If it can't read a folder it watches, its window opens to say so.
+
 ## 0.2.0
 - **Protected folders can no longer be bypassed.** 0.1.0 compared path text, so `~/Downloads/../Code/x`, `~/code/x`, a symlink into `~/Code`, and `Documents/zoom` all got through. Ariadne now checks where a path really leads, ignoring capitalization, and checks again at the moment of each move, including inside folder merges. Undo can still put back anything an older version moved out.
 - **Every move can be undone, even after a crash.** The log entry is written before the move, not after.

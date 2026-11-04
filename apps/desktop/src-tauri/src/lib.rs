@@ -51,6 +51,66 @@ fn ariadne_home() -> PathBuf {
     std::env::var("ARIADNE_HOME").map(PathBuf::from).unwrap_or_else(|_| home().join("Library/Application Support/Ariadne"))
 }
 
+fn uid() -> String {
+    Command::new("/usr/bin/id").arg("-u").output().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()
+}
+
+fn quit_flag() -> PathBuf {
+    // /tmp empties on restart, so quitting Ariadne lasts until the next restart or until you open it again.
+    PathBuf::from(format!("/tmp/ariadne-quit-{}", uid()))
+}
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Opening the app once is all it takes: a small launch agent opens it at login and reopens it after a crash, the same way Theseus does.
+/// Quitting from the menu is respected. `"open_at_login": false` in config.json turns this off. Development builds have no bundle, so they don't get one.
+fn keep_open() {
+    const LABEL: &str = "com.ariadne.watchdog";
+    let path = home().join("Library/LaunchAgents").join(format!("{LABEL}.plist"));
+    let domain = format!("gui/{}", uid());
+    let cfg: Value = fs::read_to_string(ariadne_home().join("config.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null);
+    if cfg["open_at_login"].as_bool() == Some(false) {
+        if path.exists() {
+            let _ = Command::new("/bin/launchctl").args(["bootout", &domain, path.to_str().unwrap_or("")]).output();
+            let _ = fs::remove_file(&path);
+        }
+        return;
+    }
+    let Some(app) = std::env::current_exe().ok().and_then(|e| e.ancestors().find(|p| p.extension().map(|x| x == "app").unwrap_or(false)).map(PathBuf::from)) else { return };
+    let quoted = format!("'{}'", app.display().to_string().replace('\'', "'\\''"));
+    let script = format!("pgrep -xq ariadne || [ -e {} ] || open -g -j {quoted}", quit_flag().display());
+    let plist = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>{LABEL}</string>
+<key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>{}</string></array>
+<key>RunAtLoad</key><true/>
+<key>StartInterval</key><integer>300</integer>
+</dict></plist>
+"#,
+        xml_escape(&script)
+    );
+    if fs::read_to_string(&path).map(|t| t == plist).unwrap_or(false) {
+        return;
+    }
+    let _ = fs::create_dir_all(path.parent().unwrap());
+    let _ = Command::new("/bin/launchctl").args(["bootout", &domain, path.to_str().unwrap_or("")]).output();
+    if fs::write(&path, plist).is_ok() {
+        let _ = Command::new("/bin/launchctl").args(["bootstrap", &domain, path.to_str().unwrap_or("")]).output();
+    }
+}
+
+/// True if it can't read a folder it watches, so the window should say so instead of leaving only a menu bar icon.
+fn needs_setup(root: &PathBuf) -> bool {
+    match tool(root, &["count".to_string()]) {
+        Ok(t) => serde_json::from_str::<Value>(&t).ok().map(|v| v["unreadable"].as_array().map(|a| !a.is_empty()).unwrap_or(false)).unwrap_or(true),
+        Err(_) => true,
+    }
+}
+
 fn find_claude() -> Option<PathBuf> {
     let h = home();
     [h.join(".local/bin/claude"), PathBuf::from("/opt/homebrew/bin/claude"), PathBuf::from("/usr/local/bin/claude")]
@@ -220,9 +280,13 @@ pub fn run() {
             app.manage(shared.clone());
             let _ = tool(&root, &["init".to_string()]);
 
-            // Open on the very first launch, so a new user isn't left with only a menu bar icon.
+            // Opening the app undoes "Quit": from here on, the launch agent looks after it again.
+            let _ = fs::remove_file(quit_flag());
+            keep_open();
+
+            // Open on the very first launch, and whenever it can't do its job yet, so nobody is left with only a menu bar icon.
             let seen = ariadne_home().join(".opened");
-            if !seen.exists() {
+            if !seen.exists() || needs_setup(&root) {
                 let _ = fs::write(&seen, "");
                 show_main(app.handle());
             }
@@ -240,7 +304,10 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app: &AppHandle, event| match event.id.as_ref() {
                     "open" => show_main(app),
-                    "quit" => app.exit(0),
+                    "quit" => {
+                        let _ = fs::write(quit_flag(), "");
+                        app.exit(0);
+                    }
                     _ => {}
                 })
                 .build(app)?;
