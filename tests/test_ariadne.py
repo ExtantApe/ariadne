@@ -47,6 +47,15 @@ class Base(unittest.TestCase):
         return path.name
 
 
+class CommandList(unittest.TestCase):
+    def test_every_command_is_listed_and_none_clashes_with_claude_code(self):
+        result = subprocess.run(["/usr/bin/python3", str(CLI), "help"], capture_output=True, text=True, check=True)
+        names = {p.stem for p in (CLI.parents[1] / "commands").glob("*.md")}
+        for name in names:
+            self.assertIn(f"  /{name}", result.stdout)
+        self.assertFalse(names & {"undo", "help", "doctor", "status", "review", "update"})
+
+
 class Moves(Base):
     def test_unapproved_rows_do_not_move(self):
         a = self.file("Downloads/a.txt")

@@ -32,7 +32,7 @@ Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a pers
 | `ariadne notes …` | the same for Apple Notes |
 | `ariadne doctor` | what's working and what needs a permission |
 
-In Claude Code, `/tidy`, `/file` and `/undo` run a whole pass in plain language.
+In Claude Code, `/tidy`, `/file` and `/restore` run a whole pass in plain language. To see every command at a glance, run `/commands`, or `ariadne help` in Terminal.
 
 ## Where Claude comes in
 Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a plan uses [Claude Code](https://code.claude.com), with your own account, and it reads file names (contents only if you allow it in `read_contents`). When the app asks for a plan, Claude may draft one, and approving, applying, undoing and web access are denied.
@@ -60,7 +60,7 @@ git clone https://github.com/mgilardi/ariadne ~/ariadne
 ~/ariadne/bin/ariadne install
 ```
 
-For `/tidy`, `/file` and `/undo` in any Claude Code session, also run `/plugin marketplace add mgilardi/ariadne`, then `/plugin install ariadne@ariadne`.
+For `/tidy`, `/file` and `/restore` in any Claude Code session, also run `/plugin marketplace add mgilardi/ariadne`, then `/plugin install ariadne@ariadne`.
 
 ### Build it yourself
 Needs Rust, Node 22+ and pnpm.

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- **`/undo` is now `/restore`.** Claude Code uses `/undo` for its own command. `ariadne undo` in Terminal stays the same.
+- **A list of every command.** Run `/commands` in a session, or `ariadne help` in Terminal.
+
 ## 0.2.2
 - **A new icon and color.** Ariadne is now a spool of thread on rose, with a deep rose accent inside the app. Theseus gets a matching change.
 
