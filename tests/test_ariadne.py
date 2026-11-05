@@ -47,6 +47,74 @@ class Base(unittest.TestCase):
         return path.name
 
 
+class NotesCrash(Base):
+    """A pretend Notes, so these never touch the real one. It moves what it's told to, and can fail on cue."""
+
+    def setUp(self):
+        super().setUp()
+        self.state = self.ws / "fake-notes.json"
+        self.state.write_text(json.dumps({"a": "Inbox", "b": "Inbox"}))
+        fake = self.ws / "fake-bin"
+        fake.mkdir()
+        (fake / "osascript").write_text(f"""#!/usr/bin/python3
+import json, os, sys
+state_file = {str(self.state)!r}
+notes = json.load(open(state_file))
+r = json.loads(sys.argv[-1])
+if r["cmd"] == "folders":
+    print(json.dumps([dict(id=n, name=n, path=n, account=r["account"]) for n in ("Inbox", "Filed", "Elsewhere")]))
+elif r["cmd"] == "locate":
+    print(json.dumps([dict(id=i, title="note " + i, **{{"from": notes[i], "fromId": notes[i]}}) for i in r["ids"] if i in notes]))
+elif r["cmd"] == "move":
+    moved, failed, skipped = [], [], []
+    for i in r["ids"]:
+        if r.get("only_in") and notes[i] != r["only_in"]:
+            skipped.append(i)
+        elif os.environ.get("FAKE_FAIL") == i:
+            failed.append(dict(id=i, error="locked"))
+        else:
+            moved.append(dict(id=i, **{{"from": notes[i], "fromId": notes[i]}}))
+            notes[i] = r["to"]
+            json.dump(notes, open(state_file, "w"))
+            if os.environ.get("FAKE_CRASH_AFTER") == i:
+                sys.exit("Notes crashed")
+    print(json.dumps(dict(moved=moved, failed=failed, skipped=skipped, to=r["to"])))
+""")
+        (fake / "osascript").chmod(0o755)
+        self.env = {**self.env, "PATH": f"{fake}:{self.env.get('PATH', '/usr/bin:/bin')}"}
+
+    def notes(self):
+        return json.loads(self.state.read_text())
+
+    def move(self, **env):
+        return subprocess.run(["/usr/bin/python3", str(CLI), "notes", "move", "--id", "a", "--id", "b", "--to", "Filed", "--batch", "n1"],
+                              capture_output=True, text=True, env={**self.env, **env})
+
+    def test_a_crash_partway_can_still_be_undone(self):
+        self.assertNotEqual(self.move(FAKE_CRASH_AFTER="a").returncode, 0)
+        self.assertEqual(self.notes(), {"a": "Filed", "b": "Inbox"})
+        result = self.run_ok("notes", "undo", "--batch", "n1", "--yes")
+        self.assertEqual((result["restored"], result["left_alone"]), (1, 1))
+        self.assertEqual(self.notes(), {"a": "Inbox", "b": "Inbox"})
+
+    def test_a_note_that_could_not_move_is_not_counted(self):
+        self.assertEqual(self.move(FAKE_FAIL="b").returncode, 0)
+        self.assertEqual(self.notes(), {"a": "Filed", "b": "Inbox"})
+        self.assertEqual(next(h for h in self.run_ok("history") if h["batch"] == "n1")["moves"], 1)
+        self.assertEqual([r["name"] for r in self.run_ok("where", "note")], ["note a"])
+        self.assertEqual(self.run_ok("notes", "undo", "--batch", "n1", "--yes")["restored"], 1)
+
+    def test_undo_leaves_a_note_you_moved_since_alone(self):
+        self.assertEqual(self.move().returncode, 0)
+        self.state.write_text(json.dumps({"a": "Elsewhere", "b": "Filed"}))
+        result = self.run_ok("notes", "undo", "--batch", "n1", "--yes")
+        self.assertEqual((result["restored"], result["left_alone"]), (1, 1))
+        self.assertEqual(self.notes(), {"a": "Elsewhere", "b": "Inbox"})
+
+    def test_home_is_private(self):
+        self.assertEqual(self.ws.stat().st_mode & 0o777, 0o700)
+
+
 class CommandList(unittest.TestCase):
     def test_every_command_is_listed_and_none_clashes_with_claude_code(self):
         result = subprocess.run(["/usr/bin/python3", str(CLI), "help"], capture_output=True, text=True, check=True)

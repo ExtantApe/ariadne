@@ -640,6 +640,9 @@ def history_rows() -> list[dict]:
         if not live_moves(b["batch"], log):
             b["undone_at"] = max(e["time"] for e in log if e.get("undo_of") == b["batch"])
     for e in load_log(NOTESLOG):
+        if "not_moved" in e:
+            by[e["batch"]]["moves"] -= 1
+            continue
         if e.get("undo_of"):
             if e["undo_of"] in by: by[e["undo_of"]]["undone_at"] = e["time"]
             continue
@@ -656,10 +659,15 @@ def where_rows(query: str) -> list[dict]:
     for e in log:
         if "from" not in e or e.get("undo_of") or not (q in Path(e["from"]).name.lower() or q in Path(e["to"]).name.lower()):
             continue
-        ids = live.setdefault(e["batch"], {m["to"] for m in live_moves(e["batch"], log)})
+        if e["batch"] not in live:
+            live[e["batch"]] = {m["to"] for m in live_moves(e["batch"], log)}
+        ids = live[e["batch"]]
         rows.append({"kind": "file", "name": Path(e["to"]).name, "from": e["from"], "to": e["to"], "when": e["time"], "batch": e["batch"], "undone": e["to"] not in ids})
     notes = load_log(NOTESLOG)
+    never_moved = {(e["batch"], e["not_moved"]) for e in notes if "not_moved" in e}
     for e in notes:
+        if (e.get("batch"), e.get("id")) in never_moved:
+            continue
         title = e.get("title") or ""   # notes filed before this log kept titles can't be found by name
         if "id" not in e or "from" not in e or e.get("undo_of") or q not in title.lower():
             continue

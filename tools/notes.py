@@ -79,15 +79,27 @@ function run(argv) {
       }
       return JSON.stringify(out);
     }
+    case 'locate': {
+      const found = [];
+      for (const id of r.ids) {
+        try {
+          const n = Notes.notes.byId(id); const title = n.name(); const c = n.container();
+          found.push({ id: id, title: title, from: c.name(), fromId: c.id() });
+        } catch (e) {}
+      }
+      return JSON.stringify(found);
+    }
     case 'move': {
-      const dest = folderAt(r.to); const moved = []; const failed = [];
+      const dest = folderAt(r.to); const moved = []; const failed = []; const skipped = [];
+      const onlyIn = r.only_in ? folderAt(r.only_in).id() : null;
       for (const id of r.ids) {
         let from = '', fromId = '';
         try {
           const n = Notes.notes.byId(id); n.name();
           try { const c = n.container(); from = c.name(); fromId = c.id(); } catch (e) {}
           if ((r.protect || []).indexOf(from) >= 0) { failed.push({ id: id, error: 'in a protected folder: ' + from }); continue; }
-          const title = n.name(); Notes.move(n, { to: dest }); moved.push({ id: id, from: from, fromId: fromId, title: title });
+          if (onlyIn && fromId !== onlyIn) { skipped.push(id); continue; }
+          Notes.move(n, { to: dest }); moved.push({ id: id, from: from, fromId: fromId });
         }
         catch (e) {
           // Locked notes move but Notes reports an error; check where the note is now.
@@ -95,7 +107,7 @@ function run(argv) {
           failed.push({ id: id, error: String(e) });
         }
       }
-      return JSON.stringify({ moved: moved, failed: failed, to: r.to });
+      return JSON.stringify({ moved: moved, failed: failed, skipped: skipped, to: r.to });
     }
   }
   throw new Error('unknown command');
@@ -201,15 +213,25 @@ def move(ids: list[str], to: str, batch: str):
     guarded = set(CFG.get("notes_never_touch_ids", []))
     keep = [i for i in ids if i not in guarded]
     protect = [p.split("/")[-1] for p in CFG.get("notes_never_touch", [])]
-    res = jxa({"cmd": "move", "ids": keep, "to": to, "protect": protect})
-    res["refused_protected"] = [i for i in ids if i in guarded]
-    paths = {f["id"]: f["path"] for f in jxa({"cmd": "folders"}) if f.get("account") == ACCOUNT}
     batch = batch or f"notes-{dt.date.today()}"
+    # Everything that could move goes in the log first, so a crash or an error partway can still be undone. Undo only moves notes still in the batch's folder.
+    paths = {f["id"]: f["path"] for f in jxa({"cmd": "folders"}) if f.get("account") == ACCOUNT}
+    found = jxa({"cmd": "locate", "ids": keep})
     WS.mkdir(parents=True, exist_ok=True)
     with open(NOTESLOG, "a") as f:
-        for m in res["moved"]:
-            f.write(json.dumps({"batch": batch, "time": dt.datetime.now().isoformat(timespec="seconds"), "id": m["id"], "title": m.get("title"),
-                                "from": paths.get(m.get("fromId"), m.get("from")), "to": to}, ensure_ascii=False) + "\n")
+        for n in found:
+            if n["from"] not in protect:
+                f.write(json.dumps({"batch": batch, "time": dt.datetime.now().isoformat(timespec="seconds"), "id": n["id"], "title": n["title"],
+                                    "from": paths.get(n["fromId"], n["from"]), "to": to}, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    res = jxa({"cmd": "move", "ids": keep, "to": to, "protect": protect})
+    res["refused_protected"] = [i for i in ids if i in guarded]
+    moved = {m["id"] for m in res["moved"]}
+    with open(NOTESLOG, "a") as f:
+        for n in found:
+            if n["id"] not in moved and n["from"] not in protect:
+                f.write(json.dumps({"batch": batch, "time": dt.datetime.now().isoformat(timespec="seconds"), "not_moved": n["id"]}) + "\n")
     log_line(f"notes move · {len(res['moved'])} note(s) → {to} · batch {batch}")
     return res
 
@@ -217,23 +239,24 @@ def move(ids: list[str], to: str, batch: str):
 def undo(batch: str, yes: bool):
     log = [json.loads(l) for l in NOTESLOG.read_text().splitlines() if l.strip()] if NOTESLOG.exists() else []
     last = max([i for i, e in enumerate(log) if e.get("undo_of") == batch], default=-1)
-    plan = [e for i, e in enumerate(log) if e.get("batch") == batch and "id" in e and i > last]
+    not_moved = {e["not_moved"] for e in log if e.get("batch") == batch and "not_moved" in e}
+    plan = [e for i, e in enumerate(log) if e.get("batch") == batch and "id" in e and i > last and e["id"] not in not_moved]
     if not plan:
         sys.exit(f"batch {batch} has nothing left to undo")
     if not yes:
         return {"batch": batch, "would_restore": len(plan), "sample": [f"{e['to']} → {e['from']}" for e in plan[:20]], "hint": "rerun with --yes"}
-    restored, failed = 0, []
-    by_from: dict[str, list[str]] = {}
+    restored, failed, skipped = 0, [], []
+    routes: dict[tuple[str, str], list[str]] = {}
     for e in plan:
-        by_from.setdefault(e["from"], []).append(e["id"])
-    for dest, ids in by_from.items():
-        res = jxa({"cmd": "move", "ids": ids, "to": dest, "protect": []})
-        restored += len(res["moved"]); failed += res["failed"]
+        routes.setdefault((e["to"], e["from"]), []).append(e["id"])
+    for (now_in, dest), ids in routes.items():
+        res = jxa({"cmd": "move", "ids": ids, "to": dest, "only_in": now_in, "protect": []})   # a note that isn't there never moved, or you've moved it since
+        restored += len(res["moved"]); failed += res["failed"]; skipped += res.get("skipped", [])
     with open(NOTESLOG, "a") as f:
         f.write(json.dumps({"batch": f"undo-{batch}", "undo_of": batch, "time": dt.datetime.now().isoformat(timespec="seconds"),
                             "restored": restored}, ensure_ascii=False) + "\n")
-    log_line(f"notes undo {batch}: restored {restored}, failed {len(failed)}")
-    return {"batch": batch, "restored": restored, "failed": failed[:20]}
+    log_line(f"notes undo {batch}: restored {restored}, failed {len(failed)}, left alone {len(skipped)}")
+    return {"batch": batch, "restored": restored, "failed": failed[:20], "left_alone": len(skipped)}
 
 
 def main(argv=None):

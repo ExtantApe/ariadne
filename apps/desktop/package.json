@@ -1,7 +1,7 @@
 {
   "name": "ariadne-desktop",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.3.0",
   "type": "module",
   "description": "Ariadne for Mac: review filing plans, approve what moves, and undo any batch.",
   "scripts": {
