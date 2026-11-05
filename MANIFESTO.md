@@ -59,11 +59,11 @@ Anything new that one needs from the other goes through that command line, and s
 
 `brand/README.md` holds the specifics. The short version:
 
-- **One family:** a pastel tile, one continuous deep brown line, warm neutrals. Each app has its own color only: Aegean blue for Theseus, Minoan ochre for Ariadne.
+- **One family:** a pastel tile, a simple deep brown line drawing, warm neutrals. Each app has its own color and drawing: a seafoam compass for Theseus, a rose spool of thread for Ariadne.
 - **Line icons on screen, never emoji.** Green, amber and red only ever mean a status.
 - **The same manners:** a sidebar for a few places, one page of cards, saved as you go, undo and redo, the same drag, and a pause before anything is final.
 - **The same voice:** warm, plain and brief. It sounds like a capable friend, not a product. It doesn't nag, and it never makes you feel behind.
-- **The story stays light.** The myth gives the names and the shapes. Screens use plain words.
+- **The story stays light.** The myth gives the names. Screens use plain words.
 
 ## Where they're allowed to differ
 

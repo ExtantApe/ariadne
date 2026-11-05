@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2
+- **A new icon and color.** Ariadne is now a spool of thread on rose, with a deep rose accent inside the app. Theseus gets a matching change.
+
 ## 0.2.1
 - **Just open the app, once.** Ariadne now opens at login and reopens after a crash, the same way Theseus does, with no Login Items step. Quitting from the menu bar is respected. If it can't read a folder it watches, its window opens to say so.
 

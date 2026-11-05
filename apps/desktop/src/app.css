@@ -1,6 +1,6 @@
-/* Ariadne: Minoan red ochre. Everything else comes from ui/family.css. */
-:root { --accent: #9e3323; --accent-soft: #9e332318; }
-@media (prefers-color-scheme: dark) { :root { --accent: #e8927c; --accent-soft: #e8927c22; } .btn.primary { background: #a2341f; border-color: #a2341f; } }
+/* Ariadne: rose, with a deep rose accent. Everything else comes from ui/family.css. */
+:root { --accent: #96304f; --accent-soft: #96304f18; }
+@media (prefers-color-scheme: dark) { :root { --accent: #e88fa9; --accent-soft: #e88fa922; } .btn.primary { background: #a23a5a; border-color: #a23a5a; } }
 
 .bar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 2px 0 10px; margin-bottom: -4px; }
 .group { overflow: hidden; }
