@@ -1,15 +1,40 @@
 #!/usr/bin/env python3
 """
-ariadne: keep your files and Apple Notes filed, with a yes. Never deletes, never overwrites, and every batch can be undone.
+ARIADNE COMMANDS
 
-  ariadne install                     set up Ariadne's home and put `ariadne` on your PATH (~/.local/bin)
-  ariadne init                        set up or refresh Ariadne's home; your config, map and rules are kept
-  ariadne doctor [--notes]            what's working and what needs a permission (--notes also tests controlling Notes, which opens it)
+Keep your files and Apple Notes filed, with a yes. Never deletes, never overwrites, and every batch can be undone.
+
+IN CLAUDE CODE
+  /tidy [folder, notes, dupes]        plan where everything goes, you approve, then it moves
+  /file <path or note>                file one thing where it belongs
+  /restore [batch]                    put a batch back
+  /commands                           this list
+
+IN TERMINAL: SEE WHAT'S THERE
+  ariadne count                       what's waiting in your watched folders
+  ariadne scan --path <folder>        read-only inventory
+  ariadne dupes                       find duplicates
+  ariadne where <name> --text         where a filed file or note went
+  ariadne secrets                     files that look like they hold passwords (never prints the values)
+
+IN TERMINAL: MOVE THINGS
+  ariadne plans                       your plans
+  ariadne show --plan <name>          a plan's rows
+  ariadne check --plan <name>         dry run: missing files, clashes, protected paths
+  ariadne approve --plan <name> --all approve rows (or --lines 2,3)
+  ariadne apply --plan <name> --yes   move them
+  ariadne history                     past batches
+  ariadne undo [--batch <name>]       put a batch back (add --yes)
+
+IN TERMINAL: EVERYTHING ELSE
+  ariadne notes ...                   the same for Apple Notes (ariadne notes --help)
+  ariadne doctor [--notes]            what's working and what needs a permission
+  ariadne install                     set up Ariadne and put `ariadne` on your PATH
+  ariadne init                        refresh Ariadne's home; your config, map and rules are kept
   ariadne home                        print Ariadne's home folder
-  ariadne rules                       print the operating rules (how Claude runs a filing pass)
-  ariadne notes ...                   Apple Notes filing (ariadne notes --help)
-  ariadne scan|count|new-plan|plans|show|check|approve|move-row|apply|verify|undo|history|dupes|secrets|alias|prune-empty|protect
-                                      filing (ariadne --help-files)
+  ariadne rules                       print the rules for how Claude runs a filing pass
+  ariadne --help-files                every filing command and its options
+  ariadne help                        this list
 """
 import sys
 
@@ -44,6 +69,7 @@ def init():
     shutil.copy2(ROOT / "RULES.md", WS / "RULES.md")
     shutil.copy2(ROOT / "templates/settings.json", WS / ".claude/settings.json")
     (WS / "CLAUDE.md").write_text("@RULES.md\n")
+    (WS / ".claude/commands/undo.md").unlink(missing_ok=True)  # renamed to restore.md
     for f in (ROOT / "commands").glob("*.md"):
         shutil.copy2(f, WS / ".claude/commands" / f.name)
     return {"home": str(WS)}

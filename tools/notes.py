@@ -87,7 +87,7 @@ function run(argv) {
           const n = Notes.notes.byId(id); n.name();
           try { const c = n.container(); from = c.name(); fromId = c.id(); } catch (e) {}
           if ((r.protect || []).indexOf(from) >= 0) { failed.push({ id: id, error: 'in a protected folder: ' + from }); continue; }
-          Notes.move(n, { to: dest }); moved.push({ id: id, from: from, fromId: fromId });
+          const title = n.name(); Notes.move(n, { to: dest }); moved.push({ id: id, from: from, fromId: fromId, title: title });
         }
         catch (e) {
           // Locked notes move but Notes reports an error; check where the note is now.
@@ -208,7 +208,7 @@ def move(ids: list[str], to: str, batch: str):
     WS.mkdir(parents=True, exist_ok=True)
     with open(NOTESLOG, "a") as f:
         for m in res["moved"]:
-            f.write(json.dumps({"batch": batch, "time": dt.datetime.now().isoformat(timespec="seconds"), "id": m["id"],
+            f.write(json.dumps({"batch": batch, "time": dt.datetime.now().isoformat(timespec="seconds"), "id": m["id"], "title": m.get("title"),
                                 "from": paths.get(m.get("fromId"), m.get("from")), "to": to}, ensure_ascii=False) + "\n")
     log_line(f"notes move · {len(res['moved'])} note(s) → {to} · batch {batch}")
     return res

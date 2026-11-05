@@ -28,6 +28,7 @@ Commands (JSON output unless --text)
   verify --plan FILE                  report every approved row that is not where the plan put it
   undo  [--batch NAME] [--yes]        reverse a batch from the move log (default: the most recent)
   history                             batches in the move log, newest first
+  where NAME [--text]                 where a filed file or note went, from the move logs. Changes nothing
   dupes [--path P ...] [--hash]       same name+size groups (and same content with --hash, local files only)
   secrets [--path P ...]              files that look like they hold passwords, keys or recovery codes.
                                       Reports where and what kind, NEVER the values.
@@ -647,6 +648,38 @@ def history_rows() -> list[dict]:
     return sorted(by.values(), key=lambda b: b["last"], reverse=True)
 
 
+def where_rows(query: str) -> list[dict]:
+    """Where a filed thing went, newest first, from the move logs alone. No AI, and nothing changes."""
+    q, rows = query.lower(), []
+    log = load_log()
+    live = {}
+    for e in log:
+        if "from" not in e or e.get("undo_of") or not (q in Path(e["from"]).name.lower() or q in Path(e["to"]).name.lower()):
+            continue
+        ids = live.setdefault(e["batch"], {m["to"] for m in live_moves(e["batch"], log)})
+        rows.append({"kind": "file", "name": Path(e["to"]).name, "from": e["from"], "to": e["to"], "when": e["time"], "batch": e["batch"], "undone": e["to"] not in ids})
+    notes = load_log(NOTESLOG)
+    for e in notes:
+        title = e.get("title") or ""   # notes filed before this log kept titles can't be found by name
+        if "id" not in e or "from" not in e or e.get("undo_of") or q not in title.lower():
+            continue
+        undone = any(u.get("undo_of") == e["batch"] and u["time"] >= e["time"] for u in notes)
+        rows.append({"kind": "note", "name": title, "from": e["from"], "to": e["to"], "when": e["time"], "batch": e["batch"], "undone": undone})
+    return sorted(rows, key=lambda r: r["when"], reverse=True)
+
+
+def cmd_where(a):
+    rows = where_rows(a.name)
+    if a.text:
+        if not rows:
+            print(f'Nothing filed by Ariadne matches "{a.name}".')
+        for r in rows:
+            state = "  (put back)" if r["undone"] else ""
+            print(f"{r['name']}{state}\n  now in: {tilde(r['from'] if r['undone'] else r['to'])}\n  moved {r['when'][:16].replace('T', ' ')}, from {tilde(r['from'])}")
+        return
+    out(rows)
+
+
 def cmd_history(a):
     out(history_rows())
 
@@ -831,6 +864,7 @@ def main():
     x = s.add_parser("verify"); x.add_argument("--plan", required=True); x.set_defaults(fn=cmd_verify)
     x = s.add_parser("undo"); x.add_argument("--batch"); x.add_argument("--yes", action="store_true"); x.set_defaults(fn=cmd_undo)
     x = s.add_parser("history"); x.set_defaults(fn=cmd_history)
+    x = s.add_parser("where"); x.add_argument("name"); x.add_argument("--text", action="store_true"); x.set_defaults(fn=cmd_where)
     x = s.add_parser("dupes"); x.add_argument("--path", action="append"); x.add_argument("--hash", action="store_true"); x.set_defaults(fn=cmd_dupes)
     x = s.add_parser("secrets"); x.add_argument("--path", action="append"); x.set_defaults(fn=cmd_secrets)
     x = s.add_parser("alias"); x.add_argument("--target", required=True); x.add_argument("--at", required=True)
