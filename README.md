@@ -7,7 +7,7 @@
 Your Desktop, Downloads and Notes pile up. Ariadne suggests where every item belongs, shows you the plan, and moves only what you approve.
 In the myth, Ariadne's thread led Theseus back out of the labyrinth. Here the thread is the move log: anything Ariadne moves can be put back.
 
-Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a personal assistant that clears the path through what's coming at you. [The manifesto](MANIFESTO.md) is what both promise.
+Ariadne has a sister app, [Theseus](https://github.com/ExtantApe/theseus), a personal assistant that clears the path through what's coming at you. [The manifesto](MANIFESTO.md) is what both promise.
 
 ## The promises
 - **Nothing moves without your yes.** Background runs only count.
@@ -48,7 +48,7 @@ Ariadne is free, and scanning, reviewing, moving and undoing need no AI at all.
 
 ## Install
 ### The app
-1. Download the `.dmg` from [Releases](https://github.com/mgilardi/ariadne/releases/latest) and drag Ariadne to Applications.
+1. Download the `.dmg` from [Releases](https://github.com/ExtantApe/ariadne/releases/latest) and drag Ariadne to Applications.
 2. Ariadne is free and isn't notarized by Apple (Apple charges for that), so macOS blocks the first launch. Allow it one of two ways:
 
    **Terminal (quickest):**
@@ -65,11 +65,11 @@ Open it once and it lives in your menu bar. From then on it opens at login and r
 
 ### Just the command
 ```bash
-git clone https://github.com/mgilardi/ariadne ~/ariadne
+git clone https://github.com/ExtantApe/ariadne ~/ariadne
 ~/ariadne/bin/ariadne install
 ```
 
-For `/tidy`, `/file` and `/restore` in any Claude Code session, also run `/plugin marketplace add mgilardi/ariadne`, then `/plugin install ariadne@ariadne`.
+For `/tidy`, `/file` and `/restore` in any Claude Code session, also run `/plugin marketplace add ExtantApe/ariadne`, then `/plugin install ariadne@ariadne`.
 
 ### Build it yourself
 Needs Rust, Node 22+ and pnpm.
@@ -85,11 +85,11 @@ Your own builds are signed ad hoc, so each one asks for permissions again. Relea
 Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. It never leaves your Mac except what Claude Code reads when drafting a plan.
 
 ## Works with Theseus, doesn't need it
-[Theseus](https://github.com/mgilardi/theseus) is a personal assistant that can offer a filing pass when things pile up. It calls `ariadne count`, and that's the whole connection. To protect what another tool owns, it runs `ariadne protect`.
+[Theseus](https://github.com/ExtantApe/theseus) is a personal assistant that can offer a filing pass when things pile up. It calls `ariadne count`, and that's the whole connection. To protect what another tool owns, it runs `ariadne protect`.
 
 ## Not yet
 Apple signing, automatic updates, a Notes review screen and a filing map editor in the app, and watching folders live.
 
-Questions and ideas: [open an issue](https://github.com/mgilardi/ariadne/issues).
+Questions and ideas: [open an issue](https://github.com/ExtantApe/ariadne/issues).
 
 MIT License. Independent project, not affiliated with Anthropic or Apple.
