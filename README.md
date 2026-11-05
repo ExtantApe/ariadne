@@ -90,7 +90,6 @@ Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `
 ## Not yet
 Apple signing, automatic updates, a Notes review screen and a filing map editor in the app, and watching folders live.
 
-## Who made this
-[Michael Gilardi](https://github.com/mgilardi). Questions and ideas: [open an issue](https://github.com/mgilardi/ariadne/issues).
+Questions and ideas: [open an issue](https://github.com/mgilardi/ariadne/issues).
 
 MIT License. Independent project, not affiliated with Anthropic or Apple.
