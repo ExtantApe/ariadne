@@ -2,6 +2,7 @@
 
 ## Unreleased
 - **`/undo` is now `/restore`.** Claude Code uses `/undo` for its own command. `ariadne undo` in Terminal stays the same.
+- **`ariadne where <name>`.** Find where a filed file or note went, instantly and without Claude.
 - **A list of every command.** Run `/commands` in a session, or `ariadne help` in Terminal.
 
 ## 0.2.2

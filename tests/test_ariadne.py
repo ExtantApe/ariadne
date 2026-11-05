@@ -56,6 +56,31 @@ class CommandList(unittest.TestCase):
         self.assertFalse(names & {"undo", "help", "doctor", "status", "review", "update"})
 
 
+class Where(Base):
+    def test_finds_a_moved_file_and_says_when_it_was_put_back(self):
+        self.file("Downloads/taxes.pdf")
+        self.file("Downloads/other.txt")
+        plan = self.plan([("Downloads/taxes.pdf", "Documents/Money/taxes-2025.pdf"), ("Downloads/other.txt", "Documents/other.txt")])
+        self.run_ok("apply", "--plan", plan, "--yes")
+        rows = self.run_ok("where", "TAXES")
+        self.assertEqual(len(rows), 1)
+        self.assertFalse(rows[0]["undone"])
+        self.assertTrue(rows[0]["to"].endswith("Documents/Money/taxes-2025.pdf"))
+        self.assertIn("now in: ~/Documents/Money", self.run_ok("where", "taxes", "--text"))
+        self.run_ok("undo", "--yes")
+        self.assertTrue(self.run_ok("where", "taxes")[0]["undone"])
+        self.assertIn("now in: ~/Downloads/taxes.pdf", self.run_ok("where", "taxes", "--text"))
+
+    def test_finds_a_filed_note_by_title(self):
+        (self.ws / "notes-moves.jsonl").write_text(json.dumps({"batch": "n1", "time": "2026-01-01T00:00:00", "id": "x", "title": "Lake house plans", "from": "Inbox", "to": "Home/Projects"}) + "\n")
+        rows = self.run_ok("where", "lake")
+        self.assertEqual((rows[0]["kind"], rows[0]["to"], rows[0]["undone"]), ("note", "Home/Projects", False))
+
+    def test_nothing_found(self):
+        self.assertEqual(self.run_ok("where", "nothing"), [])
+        self.assertIn("Nothing filed", self.run_ok("where", "nothing", "--text"))
+
+
 class Moves(Base):
     def test_unapproved_rows_do_not_move(self):
         a = self.file("Downloads/a.txt")

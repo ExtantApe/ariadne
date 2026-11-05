@@ -14,6 +14,7 @@ IN TERMINAL: SEE WHAT'S THERE
   ariadne count                       what's waiting in your watched folders
   ariadne scan --path <folder>        read-only inventory
   ariadne dupes                       find duplicates
+  ariadne where <name> --text         where a filed file or note went
   ariadne secrets                     files that look like they hold passwords (never prints the values)
 
 IN TERMINAL: MOVE THINGS

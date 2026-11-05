@@ -27,6 +27,7 @@ Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a pers
 | `ariadne plans`, `ariadne show --plan NAME` | your plans and their rows |
 | `ariadne check --plan NAME` | dry run: missing files, clashes, protected paths |
 | `ariadne approve`, `ariadne apply --plan NAME --yes` | approve rows, then move them |
+| `ariadne where NAME --text` | where a filed file or note went |
 | `ariadne history`, `ariadne undo [--batch NAME]` | see batches, and put one back (add `--yes`) |
 | `ariadne dupes`, `ariadne secrets` | find duplicates, and files that look like they hold passwords (never prints the values) |
 | `ariadne notes …` | the same for Apple Notes |
@@ -36,6 +37,14 @@ In Claude Code, `/tidy`, `/file` and `/restore` run a whole pass in plain langua
 
 ## Where Claude comes in
 Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a plan uses [Claude Code](https://code.claude.com), with your own account, and it reads file names (contents only if you allow it in `read_contents`). When the app asks for a plan, Claude may draft one, and approving, applying, undoing and web access are denied.
+
+## What it costs
+Ariadne is free, and scanning, reviewing, moving and undoing need no AI at all.
+
+| What | Cost | Needed for |
+|---|---|---|
+| A Mac | the one you own | Everything |
+| [Claude Pro, Max or Ultra](https://claude.com/pricing) | $20, $100 or $200 a month | Only for having Claude suggest a plan |
 
 ## Install
 ### The app
@@ -80,5 +89,8 @@ Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `
 
 ## Not yet
 Apple signing, automatic updates, a Notes review screen and a filing map editor in the app, and watching folders live.
+
+## Who made this
+[Michael Gilardi](https://github.com/mgilardi). Questions and ideas: [open an issue](https://github.com/mgilardi/ariadne/issues).
 
 MIT License. Independent project, not affiliated with Anthropic or Apple.
