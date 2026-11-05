@@ -63,6 +63,7 @@ def init():
     """Engine files are refreshed every time. The user's config, map and rules are only created if missing."""
     (WS / "plans").mkdir(parents=True, exist_ok=True)
     (WS / ".claude/commands").mkdir(parents=True, exist_ok=True)
+    WS.chmod(0o700)   # what moved where is yours alone
     for name in ("config.json", "filing-map.md", "filing-rules.md"):
         if not (WS / name).exists():
             shutil.copy2(ROOT / "templates" / name, WS / name)

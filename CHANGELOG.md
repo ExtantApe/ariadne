@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+- **Notes batches can be undone after a crash.** Ariadne now writes the log before moving anything. Undo moves a note back only if it's still where the batch put it, so a note you've moved since stays put.
+- **Locked notes can be found by name.** `ariadne where` now finds them too.
+- **Your Ariadne folder is private to your account.**
 - **`/undo` is now `/restore`.** Claude Code uses `/undo` for its own command. `ariadne undo` in Terminal stays the same.
 - **`ariadne where <name>`.** Find where a filed file or note went, instantly and without Claude.
 - **A list of every command.** Run `/commands` in a session, or `ariadne help` in Terminal.
