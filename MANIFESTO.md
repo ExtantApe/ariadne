@@ -39,6 +39,8 @@ If a safety check can't reach a decision, the answer is no.
 
 **Keeps what it's given.** Saved as you go, written whole so a crash can't leave half a file, and never lost because something else was running. Updates keep your macOS permissions.
 
+**Works from Terminal too.** Each app has a command, `theseus` and `ariadne`, that reaches the same data under the same promises.
+
 **Runs on your own Claude Code.** It never sees, stores or handles your Claude login. Anything that doesn't need AI works without it.
 
 **Tells the truth.** It says what happened and what to do next, in plain words. It doesn't say a thing worked unless it did, and the docs don't promise what the code doesn't do.
