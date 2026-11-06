@@ -1,0 +1,7 @@
+# The workflows pin actions to exact commits. This offers an update when a new version comes out.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
