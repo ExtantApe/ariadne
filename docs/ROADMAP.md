@@ -47,33 +47,49 @@ Your iPhone and Mac pair once, then talk directly, on Wi-Fi or off it.
 - It carries only Theseus traffic.
 - It needs no system VPN profile, and leaves the phone's other network use alone.
 - It's end-to-end encrypted, with keys that stay on your two devices.
-- No accounts, and no server of our own.
 
 ### Still open
 
 - **Getting through home and cell networks:** a direct connection won't always work. We haven't decided how the two devices find each other, or whether an end-to-end encrypted relay is needed when they can't connect. A relay can't read the traffic, but it would be run by someone, it would see that the devices are connecting, and it has to fit the manifesto.
-- **Pairing and lost keys:** how the devices pair, how you remove a lost phone from the Mac, how you pair again if a key is lost, and whether a restored backup brings the pairing back or you pair again.
+- **Pairing and lost keys:** how the devices pair, how you remove a lost phone from the Mac, how you pair again if a key is lost, and whether restoring a backup brings the pairing back.
 - **The Mac has to be awake:** the app can't reach a sleeping Mac, so it needs to show how old its list is and say what it can't do.
 - **What the phone can ask for:** a paired phone is a new way into Theseus. It gets the same limits as everything else and can never send anything as you.
 
-### Planned, not started: settings backup
+### Planned, not started: an encrypted iCloud backup
 
-If you lose your Mac or iPhone, you can get your settings back on a new one.
+Your Theseus folder only lives on your Mac today. It isn't in iCloud Drive. All Theseus has in iCloud now is the Today and Master List notes in Apple Notes, and the optional alarm file from your iPhone.
 
-- **The default is your own storage.** Your settings are backed up on your Mac and iPhone. iCloud through Apple Files is the suggested place, and you can choose somewhere else.
-- **Not everything counts as a setting.** What goes in the backup still has to be defined. Messages, connector logins and private details don't belong in it unencrypted.
+The plan is an encrypted backup in iCloud Drive, so you can restore after losing one device or both.
 
-### Proposal, not decided: an optional account
+- **You choose at setup, and a switch changes it later.** The first-run prompt says you can stay fully offline, and that nothing can restore your data if both devices are lost.
+- **Real encryption, not hidden files.** The backup is encrypted on your device before it reaches iCloud. Without the key, Apple or someone in your Apple account sees only an encrypted file, its size and when it changed.
+- **What encryption can't do:** someone with an unlocked device can read what's on that device.
 
-An optional Theseus account could also keep an encrypted copy of your settings on a server, with no telemetry. Backup would work without it.
+Still open:
 
-The manifesto currently rules out accounts and a server of our own, so this can't go ahead unless that changes on purpose, in both apps. It would also need encryption we can't read, a plain answer for a forgotten passphrase, and a decision on who runs and pays for the servers. It may not be needed if an encrypted backup in your own storage is enough.
+- **Where the key lives:** iCloud Keychain makes restoring easy but depends on your Apple account. A recovery key you keep yourself doesn't, but if you lose it and your devices, the backup can't be opened.
+- **What goes in it:** temporary copies of your messages and logs don't belong in it.
+
+### Proposal, not decided: a lockdown button
+
+A button for when a device is stolen, with no accounts or servers. A device you still have would send a signed signal to your other devices, directly or through iCloud Drive.
+
+- **What it would do:** lock the app, end pairing, and stop runs, Remote Control, backups and wall display updates. Theseus would list the logins to sign out of, since those belong to Claude Code and your other accounts and it can't revoke them itself.
+- **Nothing is destroyed.** Lockdown deletes nothing, and your recovery key undoes it. Erasing a device stays with Apple's Find My.
+- **Only you can trigger it.** The signal has to be signed by one of your paired devices, after Face ID or the device passcode.
+
+Limits:
+
+- A device that's offline won't hear the signal until it reconnects.
+- Locking the app doesn't encrypt the plain files on your Mac. FileVault and Find My protect those.
+- With no device left, Find My is the only option, and only if it was already on.
 
 ### What would stay true
 
 - Every promise in `MANIFESTO.md` applies, on every device.
 - The Mac app works without the phone app.
-- Any new place your data goes gets named in the manifesto first, the way the wall display was.
+- No accounts, and no server of our own.
+- Any new place your data goes, including iCloud backup, gets named in the manifesto first, the way the wall display was.
 
 ### Before starting
 
