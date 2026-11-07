@@ -12,7 +12,13 @@ This file is identical in both repositories, and CI fails if it isn't. When an a
 
 1. **You decide. We clear the way.** These apps help you live your life. They don't live it for you. They gather, sort, remember and prepare, then hand you a small, clear choice.
 2. **Less to manage, never more.** If a feature gives you a new thing to look after, it has to take away more than it adds.
-3. **Your Mac, your data.** Your data stays in plain files on your own computer. There are two exceptions, and we say so plainly: what Claude Code reads on your own account to do the work, and, only if you connect a wall display to Theseus, the parts of your list it shows, which go to your own Raspberry Pi and stay in its memory.
+3. **Your Mac, your data.** Your data stays in plain files on your own computer. When anything leaves it, it's named here:
+   - **Claude Code**, on your own account, reads what it needs to do the work, and that goes to Anthropic. While Remote Control is connected, Anthropic also keeps the session's transcript. Ariadne uses Claude Code only when you ask for a plan.
+   - **Connectors you turn on in Theseus**, such as ClickUp, Skylight, Slack, or an email and calendar service like Composio, see what Theseus reads through them and the updates it makes.
+   - **Apple's own sync** carries the Today and Master List notes, and any reminders and events Theseus adds, through whatever account they're in, usually iCloud. Your iPhone's alarm list reaches the Mac through iCloud Drive. Notes that Ariadne files stay in the account they're already in.
+   - **A wall display**, only if you connect one to Theseus, gets the parts of your list it shows. They go to your own Raspberry Pi and stay in its memory.
+
+   Nothing else leaves, and nothing goes to a server of ours.
 4. **Free and open source, always.** No subscription, no paid tier, no data collection, no selling access to Claude.
 5. **Lightly opinionated.** Everything starts blank and adapts to you. The few things that don't bend are the promises below.
 

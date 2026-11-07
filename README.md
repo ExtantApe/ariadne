@@ -85,7 +85,7 @@ pnpm test          # tests for the part that moves files; runs in a throwaway ho
 Your own builds are signed ad hoc, so each one asks for permissions again. Releases don't have that problem.
 
 ## Your data
-Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. The only thing that leaves your Mac is what Claude Code reads when it drafts a plan.
+Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. The only thing that leaves your Mac is what Claude Code reads when it drafts a plan. Notes you file stay in the account they're in.
 
 ## Works with Theseus, doesn't need it
 [Theseus](https://github.com/mgilardi/theseus) can offer a filing pass when things pile up. It calls `ariadne count` to see what's waiting and `ariadne protect` to mark what it owns, and that's the whole connection.
