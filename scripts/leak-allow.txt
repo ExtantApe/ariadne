@@ -1,7 +1,7 @@
 # Public phrases the leak check should allow
-github.com/mgilardi/ariadne
+github.com/ExtantApe/ariadne
 io.github.mgilardi.ariadne
 128x128@2x.png
-github.com/mgilardi/theseus
-mgilardi/ariadne
-mgilardi/theseus
+github.com/ExtantApe/theseus
+ExtantApe/ariadne
+ExtantApe/theseus
