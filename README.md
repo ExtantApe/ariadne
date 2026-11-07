@@ -2,21 +2,22 @@
 
 # Ariadne
 
-**Keep your Mac's files and Apple Notes filed, with a yes.** Free and open source. For Macs.
+**Keeps your Mac's files and Apple Notes filed, with your OK.** Free and open source, for Macs.
 
-Your Desktop, Downloads and Notes pile up. Ariadne suggests where every item belongs, shows you the plan, and moves only what you approve.
-In the myth, Ariadne's thread led Theseus back out of the labyrinth. Here the thread is the move log: anything Ariadne moves can be put back.
+Your Desktop, Downloads and Notes pile up. Ariadne suggests where everything should go, shows you the plan, and only moves what you approve.
 
-Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a personal assistant that clears the path through what's coming at you. [The manifesto](MANIFESTO.md) is what both promise.
+The name comes from the myth, where Ariadne's thread led Theseus back out of the labyrinth. Here the thread is the move log, so anything Ariadne moves can be put back.
+
+Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a personal assistant for when too much is coming at you. [The manifesto](MANIFESTO.md) is what they both promise.
 
 ## The promises
-- **Nothing moves without your yes.** Background runs only count.
-- **Nothing is deleted or overwritten.** A clash is skipped and reported. Duplicates go to a tray for you to empty.
+- **Nothing moves until you say yes.** Background runs only count.
+- **Nothing gets deleted or overwritten.** If there's a clash, it's skipped and reported. Duplicates go to a tray for you to empty.
 - **Every batch can be undone**, files and notes alike.
-- **Some things stay put, always.** Checked by where a path really leads, so `..`, capitalization and symlinks don't get around it, and checked again at the moment of each move: `~/Code`, anything in a git repository, any folder containing one, app-owned folders, your standard folders themselves (Desktop, Documents and so on), anything outside your home folder or an external drive, and Ariadne's own folder are refused. Your config can only add to that list.
+- **Some things never move.** That's `~/Code`, anything in a git repository, any folder containing one, app-owned folders, your standard folders themselves (Desktop, Documents and so on), anything outside your home folder or an external drive, and Ariadne's own folder. It checks where a path really leads, so `..`, capitalization and symlinks don't get around it, and it checks again right before each move. Your config can add to that list but can't take anything off it.
 
 ## Two ways to use it
-**The Mac app.** A menu bar app that counts what's waiting, lets you review a plan row by row, tick what moves, and undo any batch. The tool ships inside it.
+**The Mac app.** It lives in your menu bar and counts what's waiting. You review a plan row by row, tick what moves, and can undo any batch. The tool ships inside it.
 
 **The command**, from Terminal or Claude Code:
 
@@ -33,13 +34,13 @@ Ariadne has a sister app, [Theseus](https://github.com/mgilardi/theseus), a pers
 | `ariadne notes …` | the same for Apple Notes |
 | `ariadne doctor` | what's working and what needs a permission |
 
-In Claude Code, `/tidy`, `/file` and `/restore` run a whole pass in plain language. To see every command at a glance, run `/commands`, or `ariadne help` in Terminal.
+In Claude Code, `/tidy`, `/file` and `/restore` run a whole pass in plain language. To see every command, run `/commands`, or `ariadne help` in Terminal.
 
 ## Where Claude comes in
-Scanning, reviewing, moving and undoing need no AI at all. Only *suggesting* a plan uses [Claude Code](https://code.claude.com), with your own account, and it reads file names (contents only if you allow it in `read_contents`). When the app asks for a plan, Claude may draft one, and approving, applying, undoing and web access are denied.
+Scanning, reviewing, moving and undoing don't use AI at all. The only part that does is *suggesting* a plan, which uses [Claude Code](https://code.claude.com) on your own account. It reads file names, and contents only if you allow it in `read_contents`. When the app asks for a plan, Claude can draft one, but it can't approve, apply or undo anything, and it can't use the web.
 
 ## What it costs
-Ariadne is free, and scanning, reviewing, moving and undoing need no AI at all.
+Ariadne is free. You'd only pay for Claude, and only if you want it suggesting plans.
 
 | What | Cost | Needed for |
 |---|---|---|
@@ -49,7 +50,7 @@ Ariadne is free, and scanning, reviewing, moving and undoing need no AI at all.
 ## Install
 ### The app
 1. Download the `.dmg` from [Releases](https://github.com/mgilardi/ariadne/releases/latest) and drag Ariadne to Applications.
-2. Ariadne is free and isn't notarized by Apple (Apple charges for that), so macOS blocks the first launch. Allow it one of two ways:
+2. Apple charges for notarizing and Ariadne is free, so it isn't notarized and macOS blocks the first launch. There are two ways to allow it:
 
    **Terminal (quickest):**
 
@@ -61,7 +62,9 @@ Ariadne is free, and scanning, reviewing, moving and undoing need no AI at all.
 
 Requires macOS 14 or later, on Apple silicon or Intel, and Apple's command line tools (`xcode-select --install`).
 
-Open it once and it lives in your menu bar. From then on it opens at login and reopens after a crash, without Claude or Terminal open; quitting it from the menu bar keeps it closed until you open it or restart (`"open_at_login": false` in its config turns this off). Sorting Notes also needs Full Disk Access (Setup tab). To use `ariadne` from Terminal, Claude Code or Theseus, click **Install the command** in the Setup tab.
+Open it once and it lives in your menu bar. After that it opens at login and reopens after a crash, and you don't need Claude or Terminal open. If you quit it from the menu bar, it stays closed until you open it or restart. To turn that off, set `"open_at_login": false` in its config.
+
+Sorting Notes also needs Full Disk Access (Setup tab). To use `ariadne` from Terminal, Claude Code or Theseus, click **Install the command** in the Setup tab.
 
 ### Just the command
 ```bash
@@ -79,13 +82,13 @@ pnpm app:build     # apps/desktop/src-tauri/target/release/bundle/macos/Ariadne.
 pnpm test          # tests for the part that moves files; runs in a throwaway home
 ```
 
-Your own builds are signed ad hoc, so each one asks for permissions again. Releases keep them.
+Your own builds are signed ad hoc, so each one asks for permissions again. Releases don't have that problem.
 
 ## Your data
-Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. It never leaves your Mac except what Claude Code reads when drafting a plan.
+Everything is in `~/Library/Application Support/Ariadne` (or `$ARIADNE_HOME`): `config.json`, `filing-map.md`, `filing-rules.md`, `plans/`, and the move logs. The only thing that leaves your Mac is what Claude Code reads when it drafts a plan.
 
 ## Works with Theseus, doesn't need it
-[Theseus](https://github.com/mgilardi/theseus) is a personal assistant that can offer a filing pass when things pile up. It calls `ariadne count`, and that's the whole connection. To protect what another tool owns, it runs `ariadne protect`.
+[Theseus](https://github.com/mgilardi/theseus) can offer a filing pass when things pile up. It calls `ariadne count` to see what's waiting and `ariadne protect` to mark what it owns, and that's the whole connection.
 
 ## Not yet
 Apple signing, automatic updates, a Notes review screen and a filing map editor in the app, and watching folders live.
