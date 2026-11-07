@@ -1,6 +1,7 @@
 # Public phrases the leak check should allow
 github.com/ExtantApe/ariadne
 io.github.mgilardi.ariadne
+Copyright (c) 2026 EXTANT APE
 128x128@2x.png
 github.com/ExtantApe/theseus
 ExtantApe/ariadne
