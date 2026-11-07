@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- **Release builds are harder to tamper with.** GitHub Actions are pinned to exact commits, the signing secrets reach only the step that needs them, and the write token isn't left where an install script could use it.
+
 ## 0.3.0
 - **Notes batches can be undone after a crash.** Ariadne now writes the log before moving anything. Undo moves a note back only if it's still where the batch put it, so a note you've moved since stays put.
 - **Locked notes can be found by name.** `ariadne where` now finds them too.

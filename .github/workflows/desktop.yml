@@ -13,30 +13,34 @@ permissions:
 jobs:
   mac:
     runs-on: macos-latest
-    env:
-      APP_SIGNING_P12: ${{ secrets.APP_SIGNING_P12 }}
-      APP_SIGNING_PASSWORD: ${{ secrets.APP_SIGNING_PASSWORD }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - name: Tag must match the app's version
         run: |
           want="desktop-v$(python3 -c "import json;print(json.load(open('apps/desktop/src-tauri/tauri.conf.json'))['version'])")"
           [ "$GITHUB_REF_NAME" = "$want" ] || { echo "Tag $GITHUB_REF_NAME doesn't match version ($want)"; exit 1; }
       - run: /usr/bin/python3 tests/test_ariadne.py
       - run: bash scripts/check-shared.sh
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - run: pnpm install --frozen-lockfile
       - name: Signing certificate
-        if: env.APP_SIGNING_P12 != ''
+        # Only this step sees the secrets, so nothing that runs during the install can read them.
+        env:
+          APP_SIGNING_P12: ${{ secrets.APP_SIGNING_P12 }}
+          APP_SIGNING_PASSWORD: ${{ secrets.APP_SIGNING_PASSWORD }}
         run: |
           # A stable certificate keeps macOS permissions across updates. Forks without these secrets get an ad hoc signature.
+          [ -n "$APP_SIGNING_P12" ] || exit 0
           KC="$RUNNER_TEMP/signing.keychain-db"; PW="$(openssl rand -hex 16)"
           echo "$APP_SIGNING_P12" | base64 -d > "$RUNNER_TEMP/signing.p12"
           security create-keychain -p "$PW" "$KC"
@@ -47,7 +51,7 @@ jobs:
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           rm "$RUNNER_TEMP/signing.p12"
           echo "APPLE_SIGNING_IDENTITY=$(security find-identity -p codesigning "$KC" | grep -Eo '[0-9A-F]{40}' | head -1)" >> "$GITHUB_ENV"
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
