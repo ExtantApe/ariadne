@@ -61,28 +61,34 @@ Your Theseus folder only lives on your Mac today. It isn't in iCloud Drive. All 
 
 The plan is an encrypted backup in iCloud Drive, so you can restore after losing one device or both.
 
-- **You choose at setup, and a switch changes it later.** The first-run prompt says you can stay fully offline, and that nothing can restore your data if both devices are lost.
+- **You choose at setup, and a switch changes it later.** The first-run prompt suggests iCloud, and says you can stay fully offline, but that nothing can restore your data if both devices are lost.
 - **Real encryption, not hidden files.** The backup is encrypted on your device before it reaches iCloud. Without the key, Apple or someone in your Apple account sees only an encrypted file, its size and when it changed.
+- **You keep the recovery key.** Theseus suggests saving it in Apple's Passwords, or you can keep it somewhere else. Someone with your Apple account and device passcode could reach it in Passwords. If you lose the key and your devices, the backup can't be opened.
+- **What goes in it:** your settings, your profile and your `data` folder, which holds your list, drafts and prep notes. Scratch files, logs and temporary copies of your messages stay out.
 - **What encryption can't do:** someone with an unlocked device can read what's on that device.
+
+### Planned, not started: a lockdown button
+
+A button for when a device is stolen, with no accounts or servers. A device you still have would send a signed signal to your other devices, directly or through iCloud Drive. The signal has to come from one of your paired devices, after Face ID or the device passcode.
+
+Lockdown locks the app and stops pairing, runs, Remote Control, backups and wall display updates. It also hides what it can. It deletes nothing, and your recovery key undoes it. Erasing a device stays with Apple's Find My.
+
+| Where | What lockdown does | What it can't do |
+| --- | --- | --- |
+| Mac app | Shows a locked screen | Hide the plain files on disk |
+| iPhone app | Shows a locked screen, and drops its copy of your list, which the Mac can send again | Act on the signal if the phone is offline |
+| Wall display | Clears the screen | Reach the Pi unless the Mac can. Unplugging the Pi clears it too |
+| Notifications | Stops any Theseus sends | Hide what Messages, Mail and other apps show |
+| Today and Master List notes | The Mac reads back your edits, then replaces the notes with a short placeholder. Your list stays on the Mac and returns when you unlock | Change the notes if the Mac is the stolen device, or if it's offline. You'd do that by hand in Notes |
+| Alarm file | Theseus stops reading it | Change it. Your iPhone's Shortcut owns it, and it holds only alarm times and labels |
+
+**Hiding isn't encryption.** Lockdown keeps your list off the screens Theseus controls. Someone who can get into an unlocked Mac can still open the plain files, and Messages, Mail and Notes themselves. FileVault, a locked device and Find My's Lost Mode are what protect against that, so Theseus should check that FileVault is on and say so if it isn't.
 
 Still open:
 
-- **Where the key lives:** iCloud Keychain makes restoring easy but depends on your Apple account. A recovery key you keep yourself doesn't, but if you lose it and your devices, the backup can't be opened.
-- **What goes in it:** temporary copies of your messages and logs don't belong in it.
-
-### Proposal, not decided: a lockdown button
-
-A button for when a device is stolen, with no accounts or servers. A device you still have would send a signed signal to your other devices, directly or through iCloud Drive.
-
-- **What it would do:** lock the app, end pairing, and stop runs, Remote Control, backups and wall display updates. Theseus would list the logins to sign out of, since those belong to Claude Code and your other accounts and it can't revoke them itself.
-- **Nothing is destroyed.** Lockdown deletes nothing, and your recovery key undoes it. Erasing a device stays with Apple's Find My.
-- **Only you can trigger it.** The signal has to be signed by one of your paired devices, after Face ID or the device passcode.
-
-Limits:
-
-- A device that's offline won't hear the signal until it reconnects.
-- Locking the app doesn't encrypt the plain files on your Mac. FileVault and Find My protect those.
-- With no device left, Find My is the only option, and only if it was already on.
+- **Encrypting your files during lockdown:** this would only cover the Theseus folder, and only on a device that hears the signal. It isn't planned unless there's a good reason.
+- **Asking for Face ID:** the iPhone app could ask each time it opens, which works even if the signal never arrives.
+- **With no device left,** Find My is the only option, and only if it was already on.
 
 ### What would stay true
 
