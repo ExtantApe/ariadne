@@ -51,7 +51,7 @@ jobs:
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           rm "$RUNNER_TEMP/signing.p12"
           echo "APPLE_SIGNING_IDENTITY=$(security find-identity -p codesigning "$KC" | grep -Eo '[0-9A-F]{40}' | head -1)" >> "$GITHUB_ENV"
-      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
