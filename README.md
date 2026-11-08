@@ -50,15 +50,15 @@ Ariadne is free. You'd only pay for Claude, and only if you want it suggesting p
 ## Install
 ### The app
 1. Download the `.dmg` from [Releases](https://github.com/ExtantApe/ariadne/releases/latest) and drag Ariadne to Applications.
-2. Apple charges for notarizing and Ariadne is free, so it isn't notarized and macOS blocks the first launch. There are two ways to allow it:
+2. Apple charges for notarizing and Ariadne is free, so it isn't notarized and macOS blocks the first launch. There are two ways to allow it. Apple says to do this only for an app you trust.
 
-   **Terminal (quickest):**
+   **System Settings:** try to open Ariadne once and close the warning. Then go to **System Settings → Privacy & Security**, scroll down, click **Open Anyway**, and click **Open** when the warning comes back.
+
+   **Or Terminal:** this lifts the block for Ariadne only.
 
    ```bash
    xattr -dr com.apple.quarantine "/Applications/Ariadne.app"
    ```
-
-   **Or System Settings:** open the app and dismiss the warning, then go to **System Settings → Privacy & Security**, scroll down, and choose **Open Anyway**.
 
 Requires macOS 14 or later, on Apple silicon or Intel, and Apple's command line tools (`xcode-select --install`).
 

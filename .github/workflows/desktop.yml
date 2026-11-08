@@ -58,7 +58,16 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'Ariadne for Mac ${{ github.ref_name }}'
-          releaseBody: 'Download the .dmg and drag Ariadne to Applications. It is not notarized by Apple, so see the README for how to allow the first launch: xattr -dr com.apple.quarantine "/Applications/Ariadne.app"'
+          releaseBody: |
+            Download the .dmg and drag Ariadne to Applications. Ariadne isn't notarized by Apple, so macOS blocks the first launch. There are two ways to allow it. Apple says to do this only for an app you trust.
+
+            **System Settings:** try to open Ariadne once and close the warning. Then go to **System Settings → Privacy & Security**, scroll down, click **Open Anyway**, and click **Open** when the warning comes back.
+
+            **Or Terminal:** this lifts the block for Ariadne only.
+
+            ```
+            xattr -dr com.apple.quarantine "/Applications/Ariadne.app"
+            ```
           releaseDraft: false
           prerelease: false
           args: --target universal-apple-darwin
