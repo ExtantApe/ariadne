@@ -625,5 +625,52 @@ class Hardening(Base):
         self.assertFalse(any(c["name"] == "Control Notes" for c in checks))
 
 
+class PruneEmpty(Base):
+    """The one command that deletes: only folders with nothing in them but Finder's own files, only with --yes."""
+
+    def setUp(self):
+        super().setUp()
+        (self.home / "Downloads/old/empty").mkdir(parents=True)
+        self.file("Downloads/old/finder-only/.DS_Store")
+        self.keep = self.file("Downloads/old/has-a-file/note.txt", "keep me")
+        self.file("Downloads/old/repo/.git/HEAD", "ref")
+        (self.home / "Downloads/old/repo/empty-inside").mkdir()
+
+    def test_without_yes_nothing_is_removed(self):
+        p = self.run_cli("prune-empty", "--path", str(self.home / "Downloads/old"))
+        self.assertNotEqual(p.returncode, 0)
+        self.assertTrue((self.home / "Downloads/old/empty").is_dir())
+        self.assertTrue((self.home / "Downloads/old/finder-only/.DS_Store").exists())
+
+    def test_only_empty_folders_go_and_everything_else_stays(self):
+        removed = self.run_ok("prune-empty", "--path", str(self.home / "Downloads/old"), "--yes")["removed"]
+        self.assertFalse((self.home / "Downloads/old/empty").exists())
+        self.assertFalse((self.home / "Downloads/old/finder-only").exists())
+        self.assertEqual(self.keep.read_text(), "keep me")
+        self.assertTrue((self.home / "Downloads/old").is_dir(), "the folder named is never removed itself")
+        self.assertTrue((self.home / "Downloads/old/repo/.git/HEAD").exists())
+        self.assertTrue((self.home / "Downloads/old/repo/empty-inside").is_dir(), "nothing inside a repository is touched")
+        self.assertEqual(len(removed), 2, removed)
+
+    def test_a_protected_folder_is_refused(self):
+        self.file("Code/proj/.git/HEAD", "ref")
+        (self.home / "Code/proj/empty").mkdir()
+        p = self.run_cli("prune-empty", "--path", str(self.home / "Code"), "--yes")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertTrue((self.home / "Code/proj/empty").is_dir())
+
+
+class NotesReadOnly(unittest.TestCase):
+    def test_the_notes_database_is_only_read_from_a_copy(self):
+        import re
+        source = (CLI.parent / "notes.py").read_text()
+        connects = re.findall(r"sqlite3\.connect\((.*)", source)
+        self.assertTrue(connects)
+        for arg in connects:
+            self.assertIn("tmp", arg)
+            self.assertIn("mode=ro", arg)
+        self.assertNotRegex(source, r"""(?i)execute\w*\(\s*[rfb]?["']\s*(insert|update|delete|drop|alter|create)\b""")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
