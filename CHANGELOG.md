@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Cards have a hairline edge and no shadow** (D231), for a flatter, calmer look. The drag ghost and dialogs, which float above the page, keep theirs.
 - **Controls and focus are easier to see, and motion can be turned off.** Text fields and outlined buttons now have an edge at 3.3:1 or more against every surface, where they were about 1.3:1. The focus ring in light mode is a darker orange, 4.2:1 or more where it was 2.9:1. With Reduce motion on in System Settings, spinners and transitions stand still. From the design audit of 2026-11-16 (K677). Tested: the colors measured against each surface. Not seen on screen.
 - **Release builds are harder to tamper with.** GitHub Actions are pinned to exact commits, the signing secrets reach only the step that needs them, and the write token isn't left where an install script could use it.
 
