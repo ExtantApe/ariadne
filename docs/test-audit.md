@@ -2,6 +2,11 @@
 
 How the tests line up with what Ariadne promises. Redo it after every feature or fix, and at least every 14 days while the repo has commits.
 
+## 2026-11-23 · 14-day audit
+- Promises since 2026-11-09: no new behaviour. The first audit's two gaps were closed in be2409a (the one delete, and the read-only Notes copy). The rest is shared styling in family.css: a visible control outline, a darker focus ring, Reduce motion, and hairline cards.
+- Covered: family.css is held identical to Theseus by scripts/check-shared.sh and brand/shared.sha256, which CI runs. Contrast for each new colour was measured against each surface (3.3:1 or better for outlines, 4.2:1 or better for the light focus ring).
+- Gaps skipped (and why): styling has nothing to assert in a unit test, and nobody has looked at it on screen. No promise changed, so no new tests.
+
 ## 2026-11-09 · first audit
 
 What exists: `tests/test_ariadne.py` (71 tests, stdlib, everything in a throwaway home), run in CI with the leak check, the shared-file check, the desktop build and its end-to-end run.
