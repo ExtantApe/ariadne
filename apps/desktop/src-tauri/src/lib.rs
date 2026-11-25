@@ -16,6 +16,8 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
 
+mod id_move;
+
 const PY: &str = "/usr/bin/python3";
 // What the window may ask the tool to do. Aliases and pruning stay in Terminal/chat for now.
 const ALLOWED: &[&str] = &["count", "plans", "show", "check", "approve", "move-row", "apply", "verify", "history", "undo", "doctor", "home", "install"];
@@ -263,6 +265,16 @@ fn show_main(app: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before the window exists, so the web view finds its saved settings under the new identifier.
+    let moved = id_move::migrate(&home(), id_move::OLD_ID, id_move::NEW_ID).summary();
+    if !moved.is_empty() {
+        let logs = ariadne_home().join("logs");
+        let _ = fs::create_dir_all(&logs);
+        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(logs.join("app.log")) {
+            use std::io::Write;
+            let _ = writeln!(f, "{moved}");
+        }
+    }
     let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![cli, job_status, suggest, open_privacy, reveal])
         .setup(|app| {

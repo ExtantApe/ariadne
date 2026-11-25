@@ -6,3 +6,5 @@ Copyright (c) 2026 EXTANT APE
 github.com/ExtantApe/theseus
 ExtantApe/ariadne
 ExtantApe/theseus
+com.extantape.ariadne
+com.extantape.<name>

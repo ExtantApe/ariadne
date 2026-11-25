@@ -66,6 +66,10 @@ Open it once and it lives in your menu bar. After that it opens at login and reo
 
 Sorting Notes also needs Full Disk Access (Setup tab). To use `ariadne` from Terminal, Claude Code or Theseus, click **Install the command** in the Setup tab.
 
+### Updating from 0.3.x
+
+The Mac app has a new identifier, `com.extantape.ariadne`, so macOS treats it as a new app and its permissions start empty. After you update, open **System Settings → Privacy & Security** and grant Ariadne again under **Files and Folders** (Desktop, Documents and Downloads), **Full Disk Access** (for sorting Notes) and **Automation** (Notes). The old Ariadne entries can be removed with the minus button. Your Ariadne folder doesn't move.
+
 ### Just the command
 ```bash
 git clone https://github.com/ExtantApe/ariadne ~/ariadne
