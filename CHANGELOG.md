@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 - **The Mac app has a new identifier, so grant its permissions again after updating** (D280, K724). Ariadne now uses `com.extantape.ariadne`, the same family as the ExtantApe organisation, where it was `io.github.mgilardi.ariadne`. macOS ties each permission to that identifier, so the updated app starts with none: grant Files and Folders (Desktop, Documents, Downloads), Full Disk Access (for sorting Notes) and Automation (Notes) again in System Settings > Privacy & Security. Your Ariadne folder is not touched. On first launch the app copies any web view folders from the old identifier and leaves the old ones alone. It has no Keychain items. Signing is unchanged. Plan in `docs/bundle-id-move.md`. Tested: the copy with made-up folders (once only, never overwrites, old data untouched, missing and unreadable sources, links). Not tested: a real build and launch and the permission prompts on a Mac.
 - **Cards have a hairline edge and no shadow** (D231), for a flatter, calmer look. The drag ghost and dialogs, which float above the page, keep theirs.
 - **Controls and focus are easier to see, and motion can be turned off.** Text fields and outlined buttons now have an edge at 3.3:1 or more against every surface, where they were about 1.3:1. The focus ring in light mode is a darker orange, 4.2:1 or more where it was 2.9:1. With Reduce motion on in System Settings, spinners and transitions stand still. From the design audit of 2026-11-16 (K677). Tested: the colors measured against each surface. Not seen on screen.
